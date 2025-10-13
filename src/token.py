@@ -5,11 +5,9 @@ from dataclasses import dataclass
 @dataclass
 class Token:
     type: str
-    value: str | None = None
-    line: int = 0
-    column: int = 0
-
+    value: str
+    line: int
+    column: int
+    
     def __str__(self):
-        if self.value is None:
-            return f"{self.type}"
         return f"{self.type}({self.value})"
