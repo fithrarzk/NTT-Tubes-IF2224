@@ -1,7 +1,7 @@
 "Baca dfa_rules.json dan bikin fungsi transisi DFA (dari start state, final state, next state)"
 
 import json
-from typing import Dict, Any
+from typing import Dict, Any, Tuple, Optional
 
 class DFARules:
     def __init__(self, data: Dict[str, Any]):
@@ -22,26 +22,22 @@ class DFARules:
     def get_token_for_final(self, state: str):
         return self.final_states.get(state)
 
-    def next_state(self, state: str, ch: str):
+    def next_state(self, state: str, ch: str) -> Tuple[Optional[str], bool]:
         state_map = self.transitions.get(state, {})
-        # classification
-        if ch.isalpha():
-            key = 'LETTER'
-        elif ch.isdigit():
-            key = 'DIGIT'
-        else:
-            key = ch  # keep symbol (kaya ':', '.', dst.)
 
-        # cek pemetaannya
-        if key in state_map:
-            return state_map[key]
-        # kalau nemu
+        # 1. Coba bandingin karakter exact dulu
+        if ch in state_map:
+            return (state_map[ch], True)
+
+        # 2. Coba klasifikasi karakter
         if ch.isalpha() and 'LETTER' in state_map:
-            return state_map['LETTER']
-        if ch.isdigit() and 'DIGIT' in state_map:
-            return state_map['DIGIT']
-        # fallback ke yang lain
+            return (state_map['LETTER'], True)
+        elif ch.isdigit() and 'DIGIT' in state_map:
+            return (state_map['DIGIT'], True)
+
+        # 3. OTHER transition - Jangan konsumsi karakter
         if 'OTHER' in state_map:
-            return state_map['OTHER']
-        # gada transisi
-        return None
+            return (state_map['OTHER'], False)
+
+        # 4. Gaada transisi valid
+        return (None, False)
