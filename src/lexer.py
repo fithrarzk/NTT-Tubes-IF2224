@@ -1,5 +1,4 @@
 "Lexical Analysis nya ya"
-
 from typing import List
 from .dfa_load import DFARules
 from .token import Token
@@ -100,6 +99,7 @@ class Lexer:
 
             # DFA buat longest match (maximal munch)
             start_i = i
+            start_col = col
             state = self.dfa.start_state
             last_accept_pos = None
             last_accept_state = None
@@ -107,36 +107,50 @@ class Lexer:
             j = i
             while j < n:
                 chj = text[j]
-                ns = self.dfa.next_state(state, chj)
+                ns, consume = self.dfa.next_state(state, chj)
+                
                 if ns is None:
                     break
+
+                # Pindah ke next state
                 state = ns
-                j += 1
+                
+                # Cek current state if final
                 if self.dfa.is_final(state):
-                    last_accept_pos = j
+                    if consume:
+                        # Normal transition - terima setelah consume karakter
+                        last_accept_pos = j + 1
+                    else:
+                        # OTHER transition - terima tanpa consume karakter
+                        last_accept_pos = j
                     last_accept_state = state
 
-            # kalau nerima
+                if consume:
+                    j += 1
+                else:
+                    # OTHER transition - jangan proses tapi lanjut ke next iterasi
+                    break
+
+            # Process accepted token
             if last_accept_pos is not None:
                 token_info = self.dfa.get_token_for_final(last_accept_state)
                 raw = text[start_i:last_accept_pos]
-
                 tok_type = token_info.get('token')
                 tok_value = token_info.get('value')
-
-                # identifier might be keyword
+                
+                # Cek keyword
                 if tok_type == 'IDENTIFIER':
                     if raw.lower() in self.keywords:
-                        tokens.append(Token('KEYWORD', raw, line, col))
+                        tokens.append(Token('KEYWORD', raw, line, start_col))
                     else:
-                        tokens.append(Token('IDENTIFIER', raw, line, col))
+                        tokens.append(Token('IDENTIFIER', raw, line, start_col))
                 elif tok_type == 'NUMBER':
-                    tokens.append(Token('NUMBER', raw, line, col))
+                    tokens.append(Token('NUMBER', raw, line, start_col))
                 else:
                     value = tok_value if tok_value is not None else raw
-                    tokens.append(Token(tok_type, value, line, col))
-
-                # update line/col 
+                    tokens.append(Token(tok_type, value, line, start_col))
+                
+                # Update posisi
                 consumed = text[start_i:last_accept_pos]
                 for c in consumed:
                     if c == '\n':
@@ -147,16 +161,31 @@ class Lexer:
                 i = last_accept_pos
                 continue
 
-            # Kalau DFA ga nemu, coba lewat start state
-            s0_next = self.dfa.next_state(self.dfa.start_state, ch)
-            if s0_next and self.dfa.is_final(s0_next):
-                token_info = self.dfa.get_token_for_final(s0_next)
-                raw = ch
-                tok_type = token_info.get('token')
-                tok_value = token_info.get('value')
-                value = tok_value if tok_value is not None else raw
-                tokens.append(Token(tok_type, value, line, col))
-                # advance
+            # Kalau ga ada longest match, coba single character token
+            # buat handle kaya '.' which go S0 -> DOT_OR_RANGE -> DOT (via OTHER)
+            ns_first, consume_first = self.dfa.next_state(self.dfa.start_state, ch)
+            if ns_first:
+                if self.dfa.is_final(ns_first):
+                    # Direct single character token
+                    token_info = self.dfa.get_token_for_final(ns_first)
+                    tok_type = token_info.get('token')
+                    tok_value = token_info.get('value')
+                    value = tok_value if tok_value is not None else ch
+                    tokens.append(Token(tok_type, value, line, col))
+                else:
+                    # Coba OTHER transition dari state pertama
+                    # handles cases like '.' -> DOT_OR_RANGE -> DOT
+                    ns_other, consume_other = self.dfa.next_state(ns_first, ch if i+1 < n else '\0')
+                    if not consume_other and self.dfa.is_final(ns_other):
+                        token_info = self.dfa.get_token_for_final(ns_other)
+                        tok_type = token_info.get('token')
+                        tok_value = token_info.get('value')
+                        value = tok_value if tok_value is not None else ch
+                        tokens.append(Token(tok_type, value, line, col))
+                    else:
+                        raise LexerError(f"Unrecognized token starting at line {line} col {col}: '{ch}'")
+                
+                # Update posisi karakter single
                 if ch == '\n':
                     line += 1
                     col = 1
@@ -165,6 +194,6 @@ class Lexer:
                 i += 1
                 continue
 
-            raise LexerError(f"Unrecognized token starting at line {line} col {col}: '{text[i]}'")
+            raise LexerError(f"Unrecognized token starting at line {line} col {col}: '{ch}'")
 
         return tokens
