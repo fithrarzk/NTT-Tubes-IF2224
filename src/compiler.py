@@ -8,7 +8,7 @@ from .lexer import Lexer, LexerError
 def main():
     parser = argparse.ArgumentParser(description='Pascal-S Lexer (Milestone 1)')
     parser.add_argument('source', help='Path to Pascal-S source file (.pas)')
-    parser.add_argument('--dfa', default='../dfa_rules.json', help='Path to DFA JSON rules file')
+    parser.add_argument('--dfa', default='dfa_rules.json', help='Path to DFA JSON rules file')
     args = parser.parse_args()
 
     try:
