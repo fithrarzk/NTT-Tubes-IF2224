@@ -1,14 +1,8 @@
-# NTT-Tubes-IF2224
-
-### Identitas Kelompok
-### Deskripsi Program
-How to run:
-`python3 -m src.compiler test/sample_program.pas`
-### Requirements
-### Cara Instalasi dan Penggunaan Program
-### Pembagian Tugas
-
 # NTT-Tubes-IF2224: LEXICAL ANALYSIS
+
+Lexer sederhana untuk Subset Pascal-S. Konverter teks sumber (.pas) menjadi daftar token menggunakan DFA yang dikonfigurasi lewat JSON.
+
+![image](https://drive.google.com/uc?export=view&id=1r5alsMi9YbsmCQTMUXw2Qkhu6ybrMVms)
 
 ## Identitas Kelompok
 
@@ -19,7 +13,6 @@ How to run:
 | Sakti Bimasena | 13523053 |
 | Muhammad Timur Kanigara | 13523055 |
 | Kefas Kurnia Jonathan | 13523113 |
-
 ---
 
 ## Deskripsi Program
@@ -49,5 +42,18 @@ Lexer ini diimplementasikan menggunakan **Deterministic Finite Automaton (DFA)**
 
 ### Penggunaan Program
 Jalankan perintah ini melalui terminal, ganti 'test/sample_program.pas' dengan file yang akan dibaca.
+
+#### Untuk Mac
 `python3 -m src.compiler test/sample_program.pas`
 
+#### Untuk Windows
+`python -m src.compiler test/sample_program.pas`
+
+### Pembagian Tugas
+| Nama | NIM | Pembagian Tugas |
+| :--- | :--- | :--- |
+| Indah Novita Tangdililing | 13523047 | Membuat DFA Rules, Implementasi dfa_load.py, Melakukan testing, Membuat laporan |
+| Muhammad Fithra Rizki | 13523049 | Implementasi lexer.py, Membuat DFA Rules, Melakukan testing, Membuat laporan, Membuat state diagram DFA |
+| Sakti Bimasena | 13523053 | Implementasi lexer.py, Membuat DFA Rules, Melakukan testing, Membuat laporan, Membuat state diagram DFA, |
+| Muhammad Timur Kanigara | 13523055 | Membuat DFA Rules, Implementasi token.py, Melakukan testing, Membuat laporan |
+| Kefas Kurnia Jonathan | 13523113 | Membuat DFA Rules, Implementasi compiler.py, Melakukan testing, Membuat laporan |
