@@ -3,7 +3,7 @@
     "final_states": {
       "ID": {"token": "IDENTIFIER"},
       "NUM": {"token": "NUMBER"},
-      "S_NUM": {"token": "NUMBER"},         
+      "S_NUM": {"token": "NUMBER"}, 
       "S_NUM_FLOAT": {"token": "NUMBER"},     
       "S_SCIENTIFIC_NUM": {"token": "NUMBER"},
       "STRING_LIT": {"token": "STRING_LITERAL"},
@@ -76,9 +76,7 @@
         "OTHER": "NUM"
       },
       "S_NUM_DOT": {
-        "DIGIT": "S_NUM_FLOAT",
-        ".": "RANGE_DOT",
-        "OTHER": "NUM"   
+        "DIGIT": "S_NUM_FLOAT"  
       },
       "S_NUM_FLOAT": {
         "DIGIT": "S_NUM_FLOAT",
