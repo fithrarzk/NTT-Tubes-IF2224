@@ -76,7 +76,7 @@
         "OTHER": "NUM"
       },
       "S_NUM_DOT": {
-        "DIGIT": "S_NUM_FLOAT"  
+        "DIGIT": "S_NUM_FLOAT"       
       },
       "S_NUM_FLOAT": {
         "DIGIT": "S_NUM_FLOAT",

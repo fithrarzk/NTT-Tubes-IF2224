@@ -25,6 +25,12 @@ class DFARules:
     def next_state(self, state: str, ch: str) -> Tuple[Optional[str], bool]:
         state_map = self.transitions.get(state, {})
 
+        # Handle EOF character specially
+        if ch == '\0':
+            if 'OTHER' in state_map:
+                return (state_map['OTHER'], False)
+            return (None, False)
+
         # 1. Coba bandingin karakter exact dulu
         if ch in state_map:
             return (state_map[ch], True)

@@ -15,10 +15,13 @@ class Lexer:
         i = 0
         line = 1
         col = 1
-        n = len(text)
+        
+        # Add virtual EOF character to enable proper OTHER transitions
+        text_with_eof = text + '\0'
+        n = len(text_with_eof)
 
-        while i < n:
-            ch = text[i]
+        while i < n - 1:  # Stop before EOF character
+            ch = text_with_eof[i]
 
             # whitespace
             if ch.isspace():
@@ -38,26 +41,15 @@ class Lexer:
             last_accept_state = None
 
             j = i
-            while j <= n:
-                if j < n:
-                    chj = text[j]
-                    ns, consume = self.dfa.next_state(state, chj)
-                    print(f"DEBUG: From state '{state}' with char '{chj}' -> next_state='{ns}', consume={consume}")
-                else:
-                    # End of input - check if current state is final
-                    if self.dfa.is_final(state):
-                        last_accept_pos = j
-                        last_accept_state = state
-                        print(f"DEBUG: End of input, final state '{state}' accepted")
-                    break
+            while j < n:  # Process including EOF
+                chj = text_with_eof[j]
+                ns, consume = self.dfa.next_state(state, chj)
                 
                 if ns is None:
-                    print(f"DEBUG: No transition found from state '{state}' with char '{chj}'")
                     break
 
                 # Update state
                 state = ns
-                print(f"DEBUG: State updated to '{state}'")
                 
                 # Check if final and record position
                 if self.dfa.is_final(state):
@@ -66,58 +58,48 @@ class Lexer:
                     else:
                         last_accept_pos = j      # Position at current character
                     last_accept_state = state
-                    print(f"DEBUG: Final state '{state}' reached, accept_pos={last_accept_pos}")
                 
                 # Advance position if consuming
                 if consume:
                     j += 1
-                    print(f"DEBUG: Consumed char '{chj}', j advanced to {j}")
                 else:
-                    print(f"DEBUG: OTHER transition, breaking without consuming '{chj}'")
-
-                    j+=1
+                    # OTHER transition - don't consume, but continue to next char
+                    j += 1
 
             if last_accept_pos is not None:
+                # Ensure we don't include EOF character in token
+                actual_end = min(last_accept_pos, len(text))
                 token_info = self.dfa.get_token_for_final(last_accept_state)
-                raw = text[start_i:last_accept_pos]
+                raw = text[start_i:actual_end]
                 tok_type = token_info.get('token')
                 tok_value = token_info.get('value')
-                
-                print(f"DEBUG: Accepted token: '{raw}' (state: {last_accept_state}, type: {tok_type})")
 
-                # Handle string literals - extract content only
+                # Handle string literals
                 if tok_type == 'STRING_LITERAL':
-                    # Remove quotes and handle escapes
                     if len(raw) >= 2 and raw[0] == "'" and raw[-1] == "'":
                         string_content = raw[1:-1].replace("''", "'")
                         tokens.append(Token('STRING_LITERAL', string_content, line, start_col))
                     else:
                         tokens.append(Token('STRING_LITERAL', raw, line, start_col))
                 elif tok_type == 'IDENTIFIER':
-                        clean_raw = raw.rstrip('.')
-                        if clean_raw.lower() in self.keywords:
-                            tokens.append(Token('KEYWORD', clean_raw, line, start_col))
-                            # Handle remaining dots
-                            dots = raw[len(clean_raw):]
-                            for dot in dots:
-                                tokens.append(Token('DOT', '.', line, start_col + len(clean_raw)))
-                        else:
-                            tokens.append(Token('IDENTIFIER', raw, line, start_col))
+                    if raw.lower() in self.keywords:
+                        tokens.append(Token('KEYWORD', raw, line, start_col))
+                    else:
+                        tokens.append(Token('IDENTIFIER', raw, line, start_col))
                 else:
                     value = tok_value if tok_value is not None else raw
                     tokens.append(Token(tok_type, value, line, start_col))
 
                 # Update position
-                for c in text[start_i:last_accept_pos]:
+                for c in text[start_i:actual_end]:
                     if c == '\n':
                         line += 1
                         col = 1
                     else:
                         col += 1
-                i = last_accept_pos
+                i = actual_end
                 continue
 
-            print(f"DEBUG: NO TOKEN ACCEPTED! Failed at char '{ch}' at position {i}")
             raise LexerError(f"Unrecognized token starting at line {line} col {col}: '{ch}'")
 
         return tokens
