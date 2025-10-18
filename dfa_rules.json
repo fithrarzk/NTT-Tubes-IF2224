@@ -51,16 +51,12 @@
         "'": "STRING_START"
       },
       "STRING_START": {
-        "'": "STRING_END_OR_ESCAPE",
+        "'": "STRING_LIT",
         "OTHER": "STRING_CONTENT"
       },
       "STRING_CONTENT": {
-        "'": "STRING_END_OR_ESCAPE",
+        "'": "STRING_LIT",
         "OTHER": "STRING_CONTENT"
-      },
-      "STRING_END_OR_ESCAPE": {
-        "'": "STRING_CONTENT",  
-        "OTHER": "STRING_LIT"   
       },
       "S_ID": {
         "LETTER": "S_ID",

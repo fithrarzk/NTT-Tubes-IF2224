@@ -1,8 +1,6 @@
-program Hello;
-var
-  a, b: integer;
+program TestStrings;
 begin
-  a := 2;
-  b := a + 10;
-  writeln('Result = ', b);
+  writeln('It''s a string literal.');
+  writeln('This string has ''two'' escaped quotes.');
+  writeln('''');
 end.
