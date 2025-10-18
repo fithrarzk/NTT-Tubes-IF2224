@@ -1,4 +1,4 @@
-"Buat definisi struktur data token nya yang bakal lewat lexical analysis"
+# Buat definisi struktur data token nya yang bakal lewat lexical analysis
 
 from dataclasses import dataclass
 

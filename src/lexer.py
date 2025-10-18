@@ -16,14 +16,14 @@ class Lexer:
         line = 1
         col = 1
         
-        # Add virtual EOF character to enable proper OTHER transitions
+        # tambahin EOF biar OTHER transitions bisa jalan
         text_with_eof = text + '\0'
         n = len(text_with_eof)
 
-        while i < n - 1:  # Stop before EOF character
+        while i < n - 1:  # berhenti sebelum EOF
             ch = text_with_eof[i]
 
-            # whitespace
+            # skip whitespace
             if ch.isspace():
                 if ch == '\n':
                     line += 1
@@ -33,7 +33,7 @@ class Lexer:
                 i += 1
                 continue
 
-            # DFA processing
+            # mulai proses DFA
             start_i = i
             start_col = col
             state = self.dfa.start_state
@@ -41,40 +41,39 @@ class Lexer:
             last_accept_state = None
 
             j = i
-            while j < n:  # Process including EOF
+            while j < n:
                 chj = text_with_eof[j]
                 ns, consume = self.dfa.next_state(state, chj)
                 
                 if ns is None:
                     break
 
-                # Update state
+                # update state
                 state = ns
                 
-                # Check if final and record position
+                # cek apakah final state
                 if self.dfa.is_final(state):
                     if consume:
-                        last_accept_pos = j + 1  # Position after consuming character
+                        last_accept_pos = j + 1
                     else:
-                        last_accept_pos = j      # Position at current character
+                        last_accept_pos = j
                     last_accept_state = state
                 
-                # Advance position if consuming
                 if consume:
                     j += 1
                 else:
-                    # OTHER transition - don't consume, but continue to next char
+                    # OTHER transition tanpa konsumsi
                     j += 1
 
             if last_accept_pos is not None:
-                # Ensure we don't include EOF character in token
+                # pastiin gak masukin EOF di token
                 actual_end = min(last_accept_pos, len(text))
                 token_info = self.dfa.get_token_for_final(last_accept_state)
                 raw = text[start_i:actual_end]
                 tok_type = token_info.get('token')
                 tok_value = token_info.get('value')
 
-                # Handle string literals
+                # handle string literal khusus
                 if tok_type == 'STRING_LITERAL':
                     if len(raw) >= 2 and raw[0] == "'" and raw[-1] == "'":
                         string_content = raw[1:-1].replace("''", "'")
@@ -82,6 +81,7 @@ class Lexer:
                     else:
                         tokens.append(Token('STRING_LITERAL', raw, line, start_col))
                 elif tok_type == 'IDENTIFIER':
+                    # cek keyword atau identifier biasa
                     if raw.lower() in self.keywords:
                         tokens.append(Token('KEYWORD', raw, line, start_col))
                     else:
@@ -90,7 +90,7 @@ class Lexer:
                     value = tok_value if tok_value is not None else raw
                     tokens.append(Token(tok_type, value, line, start_col))
 
-                # Update position
+                # update posisi setelah ambil token
                 for c in text[start_i:actual_end]:
                     if c == '\n':
                         line += 1

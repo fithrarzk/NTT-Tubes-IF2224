@@ -1,4 +1,4 @@
-"Buat jalanin lexer di terminal"
+# buat jalanin lexer di terminal
 
 import argparse
 import sys

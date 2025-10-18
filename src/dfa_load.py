@@ -1,4 +1,4 @@
-"Baca dfa_rules.json dan bikin fungsi transisi DFA (dari start state, final state, next state)"
+# Baca dfa_rules.json dan bikin fungsi transisi DFA (dari start state, final state, next state)
 
 import json
 from typing import Dict, Any, Tuple, Optional
@@ -25,25 +25,25 @@ class DFARules:
     def next_state(self, state: str, ch: str) -> Tuple[Optional[str], bool]:
         state_map = self.transitions.get(state, {})
 
-        # Handle EOF character specially
+        # handle EOF khusus
         if ch == '\0':
             if 'OTHER' in state_map:
                 return (state_map['OTHER'], False)
             return (None, False)
 
-        # 1. Coba bandingin karakter exact dulu
+        # coba exact match dulu
         if ch in state_map:
             return (state_map[ch], True)
 
-        # 2. Coba klasifikasi karakter
+        # coba klasifikasi karakter
         if ch.isalpha() and 'LETTER' in state_map:
             return (state_map['LETTER'], True)
         elif ch.isdigit() and 'DIGIT' in state_map:
             return (state_map['DIGIT'], True)
 
-        # 3. OTHER transition - Jangan konsumsi karakter
+        # OTHER transition (tanpa konsumsi karakter)
         if 'OTHER' in state_map:
             return (state_map['OTHER'], False)
 
-        # 4. Gaada transisi valid
+        # gaada transisi valid
         return (None, False)
