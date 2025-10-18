@@ -3,6 +3,10 @@
     "final_states": {
       "ID": {"token": "IDENTIFIER"},
       "NUM": {"token": "NUMBER"},
+      "S_NUM": {"token": "NUMBER"},         
+      "S_NUM_FLOAT": {"token": "NUMBER"},     
+      "S_SCIENTIFIC_NUM": {"token": "NUMBER"},
+      "STRING_LIT": {"token": "STRING_LITERAL"},
       "PLUS": {"token": "ARITHMETIC_OPERATOR", "value": "+"},
       "MINUS": {"token": "ARITHMETIC_OPERATOR", "value": "-"},
       "MULT": {"token": "ARITHMETIC_OPERATOR", "value": "*"},
@@ -22,7 +26,8 @@
       "REL_LT": {"token": "RELATIONAL_OPERATOR", "value": "<"},
       "REL_GT": {"token": "RELATIONAL_OPERATOR", "value": ">"},
       "REL_LE": {"token": "RELATIONAL_OPERATOR", "value": "<="},
-      "REL_GE": {"token": "RELATIONAL_OPERATOR", "value": ">="}
+      "REL_GE": {"token": "RELATIONAL_OPERATOR", "value": ">="},
+      "ERROR": {"token": "ERROR"}
     },
     "transitions": {
       "S0": {
@@ -43,7 +48,19 @@
         "=": "REL_EQ",
         "<": "REL_LT_OR_NEQ_OR_LE",
         ">": "REL_GT_OR_GE",
-        "'": "START_STRING"
+        "'": "STRING_START"
+      },
+      "STRING_START": {
+        "'": "STRING_END_OR_ESCAPE",
+        "OTHER": "STRING_CONTENT"
+      },
+      "STRING_CONTENT": {
+        "'": "STRING_END_OR_ESCAPE",
+        "OTHER": "STRING_CONTENT"
+      },
+      "STRING_END_OR_ESCAPE": {
+        "'": "STRING_CONTENT",  
+        "OTHER": "STRING_LIT"   
       },
       "S_ID": {
         "LETTER": "S_ID",
@@ -54,16 +71,27 @@
       "S_NUM": {
         "DIGIT": "S_NUM",
         ".": "S_NUM_DOT",
+        "E": "S_SCIENTIFIC_NUM",
+        "e": "S_SCIENTIFIC_NUM",
         "OTHER": "NUM"
       },
       "S_NUM_DOT": {
         "DIGIT": "S_NUM_FLOAT",
         ".": "RANGE_DOT",
-        "OTHER": "ERROR"
+        "OTHER": "NUM"   
       },
       "S_NUM_FLOAT": {
         "DIGIT": "S_NUM_FLOAT",
         "OTHER": "NUM"
+      },
+      "S_SCIENTIFIC_NUM": {
+        "DIGIT": "S_SCIENTIFIC_NUM",
+        "-": "S_SCIENTIFIC_NUM_MINUS",
+        "OTHER": "NUM"
+      },
+      "S_SCIENTIFIC_NUM_MINUS": {
+        "DIGIT": "S_SCIENTIFIC_NUM",
+        "OTHER": "ERROR"
       },
       "DOT_OR_RANGE": {
         ".": "RANGE_DOT",

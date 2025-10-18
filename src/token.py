@@ -10,4 +10,7 @@ class Token:
     column: int
     
     def __str__(self):
-        return f"{self.type}({self.value})"
+        if self.type == 'STRING_LITERAL':
+            return f"{self.type}('{self.value}')" 
+        else:
+            return f"{self.type}({self.value})"
