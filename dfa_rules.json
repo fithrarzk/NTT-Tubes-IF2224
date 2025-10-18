@@ -58,6 +58,7 @@
       },
       "S_NUM_DOT": {
         "DIGIT": "S_NUM_FLOAT",
+        ".": "RANGE_DOT",
         "OTHER": "ERROR"
       },
       "S_NUM_FLOAT": {
