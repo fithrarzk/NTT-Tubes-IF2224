@@ -73,7 +73,7 @@ class Lexer:
                 tok_type = token_info.get('token')
                 tok_value = token_info.get('value')
 
-                # handle string literal khusus
+                # handle string literal
                 if tok_type == 'STRING_LITERAL':
                     if len(raw) >= 2 and raw[0] == "'" and raw[-1] == "'":
                         string_content = raw[1:-1].replace("''", "'")
