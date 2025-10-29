@@ -1,7 +1,7 @@
 program TestRangeContext;
-var
-  validRange: array[1..10] of integer;
+variabel
+  validRange: larik[1..10] dari integer;
   x, y: integer;
-begin
+mulai
   x := 5..10; 
-end.
+selesai.
