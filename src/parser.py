@@ -10,6 +10,7 @@ class Parser:
         self.tokens = tokens
         self.position = 0
     
+    # FUNGSI YANG KITA BUTUHIN TAPI GADA DI SPEK DAH
     def next_token(self):
         if self.position < len(self.tokens):
             token = self.tokens[self.position]
@@ -41,6 +42,25 @@ class Parser:
         self.compound_statement()
         self.accept('DOT')
     
+    def block(self):
+        global sym
+        self.declaration_part()
+        self.compound_statement()
+
+    # JUJUR BINGUNG.    
+    def type_definition(self):
+        global sym
+        if sym.type == 'KEYWORD' and sym.value == 'larik':
+            self.accept('KEYWORD', 'larik')
+            self.accept('LBRACKET', '[')
+            self.range()
+            self.accept('RBRACKET', ']')
+            self.accept('KEYWORD', 'dari')
+            self.type()
+        else:
+            self.type()
+
+    # SEMUA FUNGSI SPEK TARO BAWAH INI
     def program_header(self):
         global sym
         self.accept('KEYWORD', 'program')
@@ -55,7 +75,7 @@ class Parser:
             self.type_declaration()
         while sym.type == 'KEYWORD' and sym.value == 'variabel':
             self.var_declaration()
-        while sym.type == 'KEYWORD' and sym.value == 'prosedur':
+        while sym.type == 'KEYWORD' and (sym.value == 'prosedur' or sym.value == 'fungsi'):
             self.subprogram_declaration()
     
     def constant_declaration(self):
@@ -100,19 +120,6 @@ class Parser:
             self.type_definition()
             self.accept('SEMICOLON', ';')
     
-    # JUJUR MASI BINGUNG, NO IDEA AND NO CONTOH DI SPEK AND DIAGRAM
-    def type_definition(self):
-        global sym
-        if sym.type == 'KEYWORD' and sym.value == 'larik':
-            self.accept('KEYWORD', 'larik')
-            self.accept('LBRACKET', '[')
-            self.range()
-            self.accept('RBRACKET', ']')
-            self.accept('KEYWORD', 'dari')
-            self.type()
-        else:
-            self.type()
-    
     def var_declaration(self):
         global sym
         self.accept('KEYWORD', 'variabel')
@@ -127,4 +134,51 @@ class Parser:
             self.type()
             self.accept('SEMICOLON', ';')
 
+    def identifier_list(self):
+        global sym
+        self.accept_identifier()
+        while sym.type == 'COMMA' and sym.value == ',':
+            self.accept('COMMA', ',')
+            self.accept_identifier()
+    
+    def type(self):
+        global sym
+        if sym.type == 'KEYWORD' and sym.value in ('integer', 'real', 'boolean', 'char'):
+            self.accept('KEYWORD', sym.value)
+        elif sym.type == 'KEYWORD' and sym.value == 'larik':
+            self.array_type()
+        else:
+            self.accept_identifier()
+    
+    def array_type(self):
+        global sym
+        self.accept('KEYWORD', 'larik')
+        self.accept('LBRACKET', '[')
+        self.range()
+        self.accept('RBRACKET', ']')
+        self.accept('KEYWORD', 'dari')
+        self.type()
+    
+    def range(self):
+        global sym
+        self.expression()
+        self.accept('DOUBLE_DOT', '..')
+        self.expression()
+
+    def subprogram_declaration(self):
+        global sym
+        if sym.type == 'KEYWORD' and sym.value == 'prosedur':
+            self.procedure_declaration()
+        elif sym.type == 'KEYWORD' and sym.value == 'fungsi':
+            self.function_declaration()
+    
+    def procedure_declaration(self):
+        global sym
+        self.accept('KEYWORD', 'prosedur')
+        self.accept_identifier()
+        if sym.type != 'SEMICOLON' and sym.value != ';':
+            self.formal_parameter_list()
+        self.accept('SEMICOLON', ';')
+        self.block()
+        self.accept('SEMICOLON', ';')
     
