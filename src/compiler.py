@@ -4,6 +4,7 @@ import argparse
 import sys
 from .dfa_load import DFARules
 from .lexer import Lexer, LexerError
+from .parser import Parser, ParserError
 
 def main():
     parser = argparse.ArgumentParser(description='Pascal-S Lexer (Milestone 1)')
@@ -30,6 +31,13 @@ def main():
     except LexerError as le:
         print('Lexer error:', le, file=sys.stderr)
         sys.exit(3)
+
+    parser = Parser(tokens)
+    try:
+        parser.parse()
+    except ParserError as pe:
+        print('Parser error:', pe, file=sys.stderr)
+        sys.exit(4)
 
     for t in tokens:
         print(str(t))

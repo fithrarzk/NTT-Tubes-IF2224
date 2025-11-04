@@ -19,18 +19,21 @@ class Parser:
             return Token('EOF', 'EOF')
 
     def accept(self, expected_type, expected_value):
+        global sym
         if sym.type == expected_type and sym.value == expected_value:
             sym = self.next_token()
         else:
             raise ParserError(f'Expected {expected_value}, got {sym.value} at line {sym.line}, column {sym.column}')
         
     def accept_identifier(self):
+        global sym
         if sym.type == 'IDENTIFIER':
             sym = self.next_token()
         else:
             raise ParserError(f'Expected IDENTIFIER, got {sym.value} at line {sym.line}, column {sym.column}')
     
     def parse(self):
+        global sym
         # berarti mulai dari program
         sym = self.next_token()
         self.program_header()
@@ -39,11 +42,13 @@ class Parser:
         self.accept('DOT')
     
     def program_header(self):
-        self.accept('KEYWORD', 'PROGRAM')
+        global sym
+        self.accept('KEYWORD', 'program')
         self.accept_identifier()
         self.accept('SEMICOLON', ';')
 
     def declaration_part(self):
+        global sym
         while sym.type == 'KEYWORD' and sym.value == 'konstanta':
             self.constant_declaration()
         while sym.type == 'KEYWORD' and sym.value == 'tipe':
@@ -54,6 +59,7 @@ class Parser:
             self.subprogram_declaration()
     
     def constant_declaration(self):
+        global sym
         self.accept('KEYWORD', 'konstanta')
         self.accept_identifier()
         self.accept('EQUALS', '=')
@@ -81,6 +87,7 @@ class Parser:
             self.accept('SEMICOLON', ';')
     
     def type_declaration(self):
+        global sym
         self.accept('KEYWORD', 'tipe')
         self.accept_identifier()
         self.accept('EQUALS', '=')
@@ -95,6 +102,7 @@ class Parser:
     
     # JUJUR MASI BINGUNG, NO IDEA AND NO CONTOH DI SPEK AND DIAGRAM
     def type_definition(self):
+        global sym
         if sym.type == 'KEYWORD' and sym.value == 'larik':
             self.accept('KEYWORD', 'larik')
             self.accept('LBRACKET', '[')
@@ -106,6 +114,7 @@ class Parser:
             self.type()
     
     def var_declaration(self):
+        global sym
         self.accept('KEYWORD', 'variabel')
         self.identifier_list()
         self.accept('COLON', ':')
