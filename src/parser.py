@@ -59,6 +59,33 @@ class Parser:
             self.type()
         else:
             self.type()
+    
+    # cek token berikutnya
+    def peek_next_token(self):
+        if self.position < len(self.tokens):
+            return self.tokens[self.position]
+        return None
+
+    def statement(self):
+        global sym
+
+        if sym.type == 'IDENTIFIER':
+            next_token = self.peek_next_token()
+            if next_token and next_token.type == 'ASSIGN_OPERATOR':
+                self.assignment_statement()
+            else:
+                self.procedure_call()
+        else:
+            if sym.value == 'mulai':
+                self.compound_statement()
+            elif sym.value == 'jika':
+                self.if_statement()
+            elif sym.value == 'selama':
+                self.while_statement()
+            elif sym.value == 'untuk':
+                self.for_statement()
+            else:
+                pass
 
     # SEMUA FUNGSI SPEK TARO BAWAH INI
     def program_header(self):
@@ -182,3 +209,53 @@ class Parser:
         self.block()
         self.accept('SEMICOLON', ';')
     
+    def while_statement(self):
+        global sym
+        self.accept('KEYWORD', 'selama')
+        self.expression()
+        self.accept('KEYWORD', 'lakukan')
+        self.statement()
+
+    def for_statement(self):
+        global sym
+        self.accept('KEYWORD', 'untuk')
+        self.accept_identifier()
+        self.accept('ASSIGN_OPERATOR', ':=')
+        self.expression()
+        if sym.type == 'KEYWORD' and sym.value in ('ke', 'turun-ke'):
+            self.accept('KEYWORD', sym.value)
+        self.expression()
+        self.accept('KEYWORD', 'lakukan')
+        self.statement()
+
+    def procedure_call(self):
+        global sym
+        self.accept_identifier()
+        if sym.type == 'LPARENTHESIS' and sym.value == '(':
+            self.accept('LPARENTHESIS', '(')
+            if sym.type != 'RPARENTHESIS' and sym.value != ')':
+                self.parameter_list()
+            self.accept('RPARENTHESIS', ')')
+
+    def parameter_list(self):
+        global sym
+        self.expression()
+        while sym.type == 'COMMA' and sym.value == ',':
+            self.accept('COMMA', ',')
+            self.expression()
+
+    def expression(self):
+        global sym
+        self.simple_expression()
+        if sym.type == 'RELATIONAL_OPERATOR':
+            self.accept('RELATIONAL_OPERATOR', sym.value)
+            self.simple_expression()
+
+    def simple_expression(self):
+        global sym
+        if sym.type == 'ARITHMETIC_OPERATOR' and sym.value in ('+', '-'):
+            self.accept('ARITHMETIC_OPERATOR', sym.value)
+        self.term()
+        while sym.type == 'ARITHMETIC_OPERATOR' and sym.value in ('+', '-'):
+            self.accept('ARITHMETIC_OPERATOR', sym.value)
+            self.term()
