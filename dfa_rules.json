@@ -7,6 +7,7 @@
       "S_NUM_FLOAT": {"token": "NUMBER"},     
       "S_SCIENTIFIC_NUM": {"token": "NUMBER"},
       "STRING_LIT": {"token": "STRING_LITERAL"},
+      "CHAR_LIT": {"token": "CHAR_LITERAL"},
       "PLUS": {"token": "ARITHMETIC_OPERATOR", "value": "+"},
       "MINUS": {"token": "ARITHMETIC_OPERATOR", "value": "-"},
       "MULT": {"token": "ARITHMETIC_OPERATOR", "value": "*"},
@@ -52,6 +53,10 @@
       },
       "STRING_START": {
         "'": "STRING_LIT",
+        "OTHER": "STRING_CONTENT_SINGLE"
+      },
+      "STRING_CONTENT_SINGLE": {
+        "'": "CHAR_LIT",
         "OTHER": "STRING_CONTENT"
       },
       "STRING_CONTENT": {
@@ -109,7 +114,7 @@
       "program", "variabel", "mulai", "selesai", "jika", "maka", "selain-itu", "selama", "lakukan", "untuk",
       "ke", "turun-ke", "integer", "real", "boolean", "char", "larik", "dari",
       "prosedur", "fungsi", "konstanta", "tipe", "bagi", "mod", "dan", "atau", "tidak", "writeln", "ke", 
-      "ulangi", "rekaman", "tidak", "kasus"
+      "ulangi", "rekaman", "kasus"
     ]
   }
   
