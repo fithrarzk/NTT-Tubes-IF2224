@@ -40,7 +40,7 @@ class Parser:
         self.program_header()
         self.declaration_part()
         self.compound_statement()
-        self.accept('DOT')
+        self.accept('DOT', '.')
     
     def block(self):
         global sym
@@ -109,12 +109,12 @@ class Parser:
         global sym
         self.accept('KEYWORD', 'konstanta')
         self.accept_identifier()
-        self.accept('EQUALS', '=')
+        self.accept('RELATIONAL_OPERATOR', '=')
         match sym.type:
             case 'NUMBER':
                 self.accept('NUMBER', sym.value)
-            case 'ARITHMETIC_OP' if sym.value in ('+', '-'):
-                self.accept('ARITHMETIC_OP', sym.value)
+            case 'ARITHMETIC_OPERATOR' if sym.value in ('+', '-'):
+                self.accept('ARITHMETIC_OPERATOR', sym.value)
                 self.accept('NUMBER', sym.value)
             case 'STRING_LITERAL':
                 self.accept('STRING_LITERAL', sym.value)
@@ -122,12 +122,12 @@ class Parser:
 
         while sym.type == 'IDENTIFIER':
             self.accept_identifier()
-            self.accept('EQUALS', '=')
+            self.accept('RELATIONAL_OPERATOR', '=')
             match sym.type:
                 case 'NUMBER':
                     self.accept('NUMBER', sym.value)
-                case 'ARITHMETIC_OP' if sym.value in ('+', '-'):
-                    self.accept('ARITHMETIC_OP', sym.value)
+                case 'ARITHMETIC_OPERATOR' if sym.value in ('+', '-'):
+                    self.accept('ARITHMETIC_OPERATOR', sym.value)
                     self.accept('NUMBER', sym.value)
                 case 'STRING_LITERAL':
                     self.accept('STRING_LITERAL', sym.value)
@@ -137,13 +137,13 @@ class Parser:
         global sym
         self.accept('KEYWORD', 'tipe')
         self.accept_identifier()
-        self.accept('EQUALS', '=')
+        self.accept('RELATIONAL_OPEARTOR', '=')
         self.type_definition()
         self.accept('SEMICOLON', ';')
 
         while sym.type == 'IDENTIFIER':
             self.accept_identifier()
-            self.accept('EQUALS', '=')
+            self.accept('RELATIONAL_OPEARTOR', '=')
             self.type_definition()
             self.accept('SEMICOLON', ';')
     
@@ -189,7 +189,7 @@ class Parser:
     def range(self):
         global sym
         self.expression()
-        self.accept('DOUBLE_DOT', '..')
+        self.accept('RANGE_OPEARTOR', '..')
         self.expression()
 
     def subprogram_declaration(self):
@@ -257,7 +257,7 @@ class Parser:
             self.accept('ARITHMETIC_OPERATOR', sym.value)
         self.term()
         while sym.type == 'ARITHMETIC_OPERATOR' and sym.value in ('+', '-'):
-            self.accept('ARITHMETIC_OPERATOR', sym.value)
+            self.additive_operator()
             self.term()
 
     def term(self):
