@@ -259,3 +259,86 @@ class Parser:
         while sym.type == 'ARITHMETIC_OPERATOR' and sym.value in ('+', '-'):
             self.accept('ARITHMETIC_OPERATOR', sym.value)
             self.term()
+
+    def term(self):
+        global sym
+        self.factor()
+        while (sym.type == 'ARITHMETIC_OPERATOR' and sym.value in ('*', '/')) or (sym.type == 'KEYWORD' and sym.value in ('bagi', 'mod', 'dan')):
+            self.multiplicative_operator()
+            self.factor() 
+
+
+    def factor(self):
+        global sym
+        match sym.type:
+            case 'IDENTIFIER':
+                self.accept_identifier()
+            case 'NUMBER': 
+                self.accept('NUMBER',sym.value)
+            case 'CHAR_LITERAL':
+                self.accept('CHAR_LITERAL',sym.value)
+            case 'STRING_LITERAL': 
+                self.accept('STRING_LITERAL',sym.value)
+            case 'LPARENTHESIS':
+                self.accept('LPARENTHESIS', '(')
+                self.expression()
+                self.accept('RPARENTHESIS',')')
+            case 'KEYWORD': 
+                if sym.value == 'tidak':
+                    self.accept('KEYWORD','tidak')
+                    self.factor()
+            case 'FUNCTION_CALL':
+                    self.function_call()
+
+    def function_call(self):
+        global sym
+        self.accept_identifier()
+        self.accept('LPARENTHESIS', '(')
+        if sym.type != 'RPARENTHESIS' and sym.value != ')':
+            self.parameter_list()
+        self.accept('RPARENTHESIS', ')')
+    
+    def relational_operator(self):
+        global sym
+        if sym.type == 'RELATIONAL_OPERATOR':
+            match sym.value:
+                case '=':
+                    self.accept('RELATIONAL_OPERATOR', '=')
+                case '<>':
+                    self.accept('RELATIONAL_OPERATOR', '<>')
+                case '<':
+                    self.accept('RELATIONAL_OPERATOR', '<')
+                case '<=':
+                    self.accept('RELATIONAL_OPERATOR', '<=')
+                case '>':
+                    self.accept('RELATIONAL_OPERATOR', '>')
+                case '>=':
+                    self.accept('RELATIONAL_OPERATOR', '>=')
+
+    def additive_operator(self):
+        global sym
+        if sym.type == 'ARITHMETIC_OPERATOR':
+            match sym.value:
+                case '+':
+                    self.accept('ARITHMETIC_OPERATOR', '+')
+                case '-':
+                    self.accept('ARITHMETIC_OPERATOR', '-')
+        if sym.type == 'KEYWORD' and sym.value == 'atau':
+            self.accept('KEYWORD','atau')
+
+    def multiplicative_operator(self):
+        global sym
+        if sym.type == 'ARITHMETIC_OPERATOR':
+            match sym.value:
+                case '*':
+                    self.accept('ARITHMETIC_OPERATOR', '*')
+                case '/':
+                    self.accept('ARITHMETIC_OPERATOR', '/')
+        if sym.type == 'KEYWORD':
+            match sym.value:
+                case 'bagi':
+                    self.accept('KEYWORD', 'bagi')
+                case 'mod':
+                    self.accept('KEYWORD', 'mod')
+                case 'dan':
+                    self.accept('KEYWORD', 'dan')
