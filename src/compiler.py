@@ -34,13 +34,46 @@ def main():
 
     parser = Parser(tokens)
     try:
-        parser.parse()
+        list_tokens = parser.parse()
     except ParserError as pe:
         print('Parser error:', pe, file=sys.stderr)
         sys.exit(4)
 
-    for t in tokens:
-        print(str(t))
+    print_parse_tree(list_tokens)
+
+def print_parse_tree(list_tokens):
+    if not list_tokens:
+        return
+    
+    active_levels = set()
+    
+    for idx, (token_str, depth) in enumerate(list_tokens):
+        is_last = True
+        for future_idx in range(idx + 1, len(list_tokens)):
+            future_depth = list_tokens[future_idx][1]
+            if future_depth < depth:
+                break
+            if future_depth == depth:
+                is_last = False
+                break
+        
+        prefix = ""
+        for level in range(depth):
+            if level in active_levels:
+                prefix += "│   "
+            else:
+                prefix += "    "
+        
+        if depth > 0:
+            if is_last:
+                prefix += "└── "
+                if depth in active_levels:
+                    active_levels.remove(depth)
+            else:
+                prefix += "├── "
+                active_levels.add(depth)
+        
+        print(f"{prefix}{token_str}")
 
 if __name__ == '__main__':
     main()
