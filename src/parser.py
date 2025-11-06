@@ -17,7 +17,7 @@ class Parser:
             self.position += 1
             return token
         else:
-            return Token('EOF', 'EOF')
+            return Token('EOF', 'EOF', -1, -1)
 
     def accept(self, expected_type, expected_value):
         global sym
@@ -94,6 +94,7 @@ class Parser:
         self.accept_identifier()
         self.accept('SEMICOLON', ';')
 
+# to-do: ubah biar bisa ganti-ganti urutannya
     def declaration_part(self):
         global sym
         while sym.type == 'KEYWORD' and sym.value == 'konstanta':
@@ -198,7 +199,7 @@ class Parser:
             self.procedure_declaration()
         elif sym.type == 'KEYWORD' and sym.value == 'fungsi':
             self.function_declaration()
-    
+
     def procedure_declaration(self):
         global sym
         self.accept('KEYWORD', 'prosedur')
@@ -208,7 +209,63 @@ class Parser:
         self.accept('SEMICOLON', ';')
         self.block()
         self.accept('SEMICOLON', ';')
-    
+
+    def function_declaration(self):
+        global sym
+        self.accept('KEYWORD', 'fungsi')
+        self.accept_identifier()
+        if sym.type != 'COLON' and sym.value != ':':
+            self.formal_parameter_list()
+        self.accept('COLON', ':')
+        self.type()
+        self.accept('SEMICOLON', ';')
+        self.block()
+        self.accept('SEMICOLON', ';')
+
+    def parameter_group(self):
+        global sym
+        self.identifier_list()
+        self.accept('COLON', ':')
+        self.type()
+
+    def formal_parameter_list(self):
+        global sym
+        self.accept('LPARENTHESIS', '(')
+        self.parameter_group()
+        while sym.type == 'SEMICOLON' and sym.value == ';':
+            self.accept('SEMICOLON',';')
+            self.parameter_group()
+        self.accept('RPARENTHESIS', ')')
+
+    def compound_statement(self):
+        global sym
+        self.accept('KEYWORD', 'mulai')
+        self.statement_list()
+        self.accept('KEYWORD', 'selesai')
+
+    def statement_list(self):
+        global sym
+        self.statement()
+        while sym.type == 'SEMICOLON' and sym.value == ';':
+            self.accept('SEMICOLON', ';')
+            self.statement()
+
+    def assignment_statement(self):
+        global sym
+        self.accept_identifier()
+        self.accept('ASSIGN_OPERATOR', ':=')
+        self.expression()
+
+    def if_statement(self):
+        global sym
+        self.accept('KEYWORD', 'jika')
+        self.expression()
+        self.accept('KEYWORD', 'maka')
+        self.statement()
+        if sym.type == 'KEYWORD' and sym.value == 'selain_itu':
+            self.accept('KEYWORD', 'selain_itu')
+            self.statement()
+
     def while_statement(self):
         global sym
         self.accept('KEYWORD', 'selama')
@@ -222,7 +279,7 @@ class Parser:
         self.accept_identifier()
         self.accept('ASSIGN_OPERATOR', ':=')
         self.expression()
-        if sym.type == 'KEYWORD' and sym.value in ('ke', 'turun-ke'):
+        if sym.type == 'KEYWORD' and sym.value in ('ke', 'turun_ke'):
             self.accept('KEYWORD', sym.value)
         self.expression()
         self.accept('KEYWORD', 'lakukan')

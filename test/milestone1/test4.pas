@@ -6,4 +6,4 @@ begin
   b := 20;
   if (a < b) and (a <> b) and (a <= b) then
     c := 1;
-end.
+end.    
