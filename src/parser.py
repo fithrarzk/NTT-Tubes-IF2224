@@ -24,7 +24,7 @@ class Parser:
         if sym.type == expected_type and sym.value == expected_value:
             sym = self.next_token()
         else:
-            raise ParserError(f'Expected {expected_value}, got {sym.value} at line {sym.line}, column {sym.column}')
+            raise ParserError(f'Expected {expected_value} of type {expected_type}, got {sym.value} of type {sym.type} at line {sym.line}, column {sym.column}')
         
     def accept_identifier(self):
         global sym
@@ -189,7 +189,7 @@ class Parser:
     def range(self):
         global sym
         self.expression()
-        self.accept('DOUBLE_DOT', '..')
+        self.accept('RANGE_OPERATOR', '..')
         self.expression()
 
     def subprogram_declaration(self):
@@ -273,6 +273,8 @@ class Parser:
         match sym.type:
             case 'IDENTIFIER':
                 self.accept_identifier()
+                if sym.type == 'LPARENTHESIS' and sym.value == '(':
+                    self.function_params()
             case 'NUMBER': 
                 self.accept('NUMBER',sym.value)
             case 'CHAR_LITERAL':
@@ -287,12 +289,9 @@ class Parser:
                 if sym.value == 'tidak':
                     self.accept('KEYWORD','tidak')
                     self.factor()
-            case 'FUNCTION_CALL':
-                    self.function_call()
 
-    def function_call(self):
+    def function_params(self):
         global sym
-        self.accept_identifier()
         self.accept('LPARENTHESIS', '(')
         if sym.type != 'RPARENTHESIS' and sym.value != ')':
             self.parameter_list()
