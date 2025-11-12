@@ -365,11 +365,9 @@ class Parser:
         i += 1
         self.tree_list.append(("<procedure_call>", i))
         self.accept_identifier()
-        if sym.type == 'LPARENTHESIS' and sym.value == '(':
-            self.accept('LPARENTHESIS', '(')
-            if sym.type != 'RPARENTHESIS' and sym.value != ')':
-                self.parameter_list()
-            self.accept('RPARENTHESIS', ')')
+        self.accept('LPARENTHESIS', '(')
+        self.parameter_list()
+        self.accept('RPARENTHESIS', ')')
         i -= 1
 
     def parameter_list(self):
