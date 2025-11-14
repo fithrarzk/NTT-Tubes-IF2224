@@ -89,7 +89,7 @@ class Parser:
             if next_token and next_token.type == 'ASSIGN_OPERATOR':
                 self.assignment_statement()
             else:
-                self.procedure_call()
+                self.procedure_function_call()
         else:
             if sym.value == 'mulai':
                 self.compound_statement()
@@ -170,7 +170,7 @@ class Parser:
 
         while sym.type == 'IDENTIFIER':
             self.accept_identifier()
-            self.accept('RELATIONAL_OPEARTOR', '=')
+            self.accept('RELATIONAL_OPERATOR', '=')
             self.type_definition()
             self.accept('SEMICOLON', ';')
         i -= 1
@@ -360,10 +360,10 @@ class Parser:
         self.statement()
         i -= 1
 
-    def procedure_call(self):
+    def procedure_function_call(self):
         global sym,i
         i += 1
-        self.tree_list.append(("<procedure_call>", i))
+        self.tree_list.append(("<procedure_function_call>", i))
         self.accept_identifier()
         self.accept('LPARENTHESIS', '(')
         self.parameter_list()
@@ -421,7 +421,7 @@ class Parser:
             case 'IDENTIFIER':
                 self.accept_identifier()
                 if sym.type == 'LPARENTHESIS' and sym.value == '(':
-                    self.function_params()
+                    self.procedure_function_call()
             case 'NUMBER': 
                 self.accept('NUMBER',sym.value)
             case 'CHAR_LITERAL':
@@ -436,16 +436,6 @@ class Parser:
                 if sym.value == 'tidak':
                     self.accept('KEYWORD','tidak')
                     self.factor()
-        i -= 1
-
-    def function_params(self):
-        global sym,i
-        i += 1
-        self.tree_list.append(("<function_params>", i))
-        self.accept('LPARENTHESIS', '(')
-        if sym.type != 'RPARENTHESIS' and sym.value != ')':
-            self.parameter_list()
-        self.accept('RPARENTHESIS', ')')
         i -= 1
     
     def relational_operator(self):
