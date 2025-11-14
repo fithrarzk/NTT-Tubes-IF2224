@@ -40,18 +40,21 @@ class Parser:
         else:
             raise ParserError(f'Expected IDENTIFIER, got {sym.value} at line {sym.line}, column {sym.column}')
         i -= 1
-    
+
     def parse(self):
-        global sym, i
-        # berarti mulai dari program
+        global sym
         sym = self.next_token()
+        self.program()
+        return self.tree_list
+    
+    def program(self):
+        global sym, i
         self.tree_list.append(("<program>", i))
         self.program_header()
         self.declaration_part()
         self.compound_statement()
         self.accept('DOT', '.')
-        return self.tree_list
-    
+        
     def block(self):
         global sym,i
         i += 1
@@ -60,7 +63,6 @@ class Parser:
         self.compound_statement()
         i -= 1
 
-    # JUJUR BINGUNG.    
     def type_definition(self):
         global sym,i
         i += 1
@@ -75,32 +77,17 @@ class Parser:
         else:
             self.type()
         i -= 1
-    
-    # cek token berikutnya, TIMURRRRRR >:(
-    def peek_next_token(self):
-        if self.position < len(self.tokens):
-            return self.tokens[self.position]
-        return None
 
-    def statement(self): # ga di masukin ke tree_list biar sama kek contoh
+    def assign_or_procedure(self):
         global sym,i
-        if sym.type == 'IDENTIFIER':
-            next_token = self.peek_next_token()
-            if next_token and next_token.type == 'ASSIGN_OPERATOR':
-                self.assignment_statement()
-            else:
-                self.procedure_function_call()
-        else:
-            if sym.value == 'mulai':
-                self.compound_statement()
-            elif sym.value == 'jika':
-                self.if_statement()
-            elif sym.value == 'selama':
-                self.while_statement()
-            elif sym.value == 'untuk':
-                self.for_statement()
-            else:
-                pass
+        i += 1
+        self.tree_list.append(("<assign_or_procedure>", i))
+        self.accept_identifier()
+        if sym.type == 'ASSIGN_OPERATOR' and sym.value == ':=':
+            self.assignment_statement()
+        elif sym.type == 'LPARENTHESIS' and sym.value == '(':
+            self.procedure_function_call()
+        i -= 1
 
     # SEMUA FUNGSI SPEK TARO BAWAH INI
     def program_header(self):
@@ -307,17 +294,40 @@ class Parser:
         global sym,i
         i += 1
         self.tree_list.append(("<statement_list>", i))
-        self.statement()
+        if sym.type == 'IDENTIFIER':
+            self.assign_or_procedure()
+        else:
+            if sym.value == 'mulai':
+                self.compound_statement()
+            elif sym.value == 'jika':
+                self.if_statement()
+            elif sym.value == 'selama':
+                self.while_statement()
+            elif sym.value == 'untuk':
+                self.for_statement()
+            else:
+                pass
         while sym.type == 'SEMICOLON' and sym.value == ';':
             self.accept('SEMICOLON', ';')
-            self.statement()
+            if sym.type == 'IDENTIFIER':
+                self.assign_or_procedure()
+            else:
+                if sym.value == 'mulai':
+                    self.compound_statement()
+                elif sym.value == 'jika':
+                    self.if_statement()
+                elif sym.value == 'selama':
+                    self.while_statement()
+                elif sym.value == 'untuk':
+                    self.for_statement()
+                else:
+                    pass
         i -= 1
 
     def assignment_statement(self):
         global sym,i
         i += 1
         self.tree_list.append(("<assignment_statement>", i))
-        self.accept_identifier()
         self.accept('ASSIGN_OPERATOR', ':=')
         self.expression()
         i -= 1
@@ -364,7 +374,6 @@ class Parser:
         global sym,i
         i += 1
         self.tree_list.append(("<procedure_function_call>", i))
-        self.accept_identifier()
         self.accept('LPARENTHESIS', '(')
         self.parameter_list()
         self.accept('RPARENTHESIS', ')')
