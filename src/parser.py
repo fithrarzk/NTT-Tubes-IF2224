@@ -342,10 +342,42 @@ class Parser:
         self.accept('KEYWORD', 'jika')
         self.expression()
         self.accept('KEYWORD', 'maka')
-        self.statement()
+        if sym.type == 'IDENTIFIER':
+            next_token = self.peek_next_token()
+            if next_token and next_token.type == 'ASSIGN_OPERATOR':
+                self.assignment_statement()
+            else:
+                self.procedure_function_call()
+        else:
+            if sym.value == 'mulai':
+                self.compound_statement()
+            elif sym.value == 'jika':
+                self.if_statement()
+            elif sym.value == 'selama':
+                self.while_statement()
+            elif sym.value == 'untuk':
+                self.for_statement()
+            else:
+                pass
         if sym.type == 'KEYWORD' and sym.value == 'selain_itu':
             self.accept('KEYWORD', 'selain_itu')
-            self.statement()
+            if sym.type == 'IDENTIFIER':
+                next_token = self.peek_next_token()
+                if next_token and next_token.type == 'ASSIGN_OPERATOR':
+                    self.assignment_statement()
+                else:
+                    self.procedure_function_call()
+            else:
+                if sym.value == 'mulai':
+                    self.compound_statement()
+                elif sym.value == 'jika':
+                    self.if_statement()
+                elif sym.value == 'selama':
+                    self.while_statement()
+                elif sym.value == 'untuk':
+                    self.for_statement()
+                else:
+                    pass
         i -= 1
 
     def while_statement(self):
@@ -355,7 +387,23 @@ class Parser:
         self.accept('KEYWORD', 'selama')
         self.expression()
         self.accept('KEYWORD', 'lakukan')
-        self.statement()
+        if sym.type == 'IDENTIFIER':
+            next_token = self.peek_next_token()
+            if next_token and next_token.type == 'ASSIGN_OPERATOR':
+                self.assignment_statement()
+            else:
+                self.procedure_function_call()
+        else:
+            if sym.value == 'mulai':
+                self.compound_statement()
+            elif sym.value == 'jika':
+                self.if_statement()
+            elif sym.value == 'selama':
+                self.while_statement()
+            elif sym.value == 'untuk':
+                self.for_statement()
+            else:
+                pass
         i -= 1
 
     def for_statement(self):
@@ -370,7 +418,23 @@ class Parser:
             self.accept('KEYWORD', sym.value)
         self.expression()
         self.accept('KEYWORD', 'lakukan')
-        self.statement()
+        if sym.type == 'IDENTIFIER':
+            next_token = self.peek_next_token()
+            if next_token and next_token.type == 'ASSIGN_OPERATOR':
+                self.assignment_statement()
+            else:
+                self.procedure_function_call()
+        else:
+            if sym.value == 'mulai':
+                self.compound_statement()
+            elif sym.value == 'jika':
+                self.if_statement()
+            elif sym.value == 'selama':
+                self.while_statement()
+            elif sym.value == 'untuk':
+                self.for_statement()
+            else:
+                pass
         i -= 1
 
     def procedure_function_call(self):
@@ -432,9 +496,11 @@ class Parser:
         self.tree_list.append(("<factor>", i))
         match sym.type:
             case 'IDENTIFIER':
-                self.accept_identifier()
-                if sym.type == 'LPARENTHESIS' and sym.value == '(':
+                next_token = self.peek_next_token()
+                if next_token and next_token.type == 'LPARENTHESIS':
                     self.procedure_function_call()
+                else:
+                    self.accept_identifier()
             case 'NUMBER': 
                 self.accept('NUMBER',sym.value)
             case 'CHAR_LITERAL':
