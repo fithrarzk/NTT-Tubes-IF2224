@@ -77,17 +77,11 @@ class Parser:
         else:
             self.type()
         i -= 1
-
-    def assign_or_procedure(self):
-        global sym,i
-        i += 1
-        self.tree_list.append(("<assign_or_procedure>", i))
-        self.accept_identifier()
-        if sym.type == 'ASSIGN_OPERATOR' and sym.value == ':=':
-            self.assignment_statement()
-        elif sym.type == 'LPARENTHESIS' and sym.value == '(':
-            self.procedure_function_call()
-        i -= 1
+    
+    def peek_next_token(self):
+        if self.position < len(self.tokens):
+            return self.tokens[self.position]
+        return None
 
     # SEMUA FUNGSI SPEK TARO BAWAH INI
     def program_header(self):
@@ -295,7 +289,11 @@ class Parser:
         i += 1
         self.tree_list.append(("<statement_list>", i))
         if sym.type == 'IDENTIFIER':
-            self.assign_or_procedure()
+            next_token = self.peek_next_token()
+            if next_token and next_token.type == 'ASSIGN_OPERATOR':
+                self.assignment_statement()
+            else:
+                self.procedure_function_call()
         else:
             if sym.value == 'mulai':
                 self.compound_statement()
@@ -310,7 +308,11 @@ class Parser:
         while sym.type == 'SEMICOLON' and sym.value == ';':
             self.accept('SEMICOLON', ';')
             if sym.type == 'IDENTIFIER':
-                self.assign_or_procedure()
+                next_token = self.peek_next_token()
+                if next_token and next_token.type == 'ASSIGN_OPERATOR':
+                    self.assignment_statement()
+                else:
+                    self.procedure_function_call()
             else:
                 if sym.value == 'mulai':
                     self.compound_statement()
@@ -328,6 +330,7 @@ class Parser:
         global sym,i
         i += 1
         self.tree_list.append(("<assignment_statement>", i))
+        self.accept_identifier()
         self.accept('ASSIGN_OPERATOR', ':=')
         self.expression()
         i -= 1
@@ -374,11 +377,12 @@ class Parser:
         global sym,i
         i += 1
         self.tree_list.append(("<procedure_function_call>", i))
+        self.accept_identifier()
         self.accept('LPARENTHESIS', '(')
         self.parameter_list()
         self.accept('RPARENTHESIS', ')')
         i -= 1
-
+        
     def parameter_list(self):
         global sym,i
         i += 1
