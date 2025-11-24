@@ -1,4 +1,5 @@
 from .token import Token
+from .ast_nodes import *
 
 sym = Token('NONE', 'NONE', 0, 0)
 i = 0
@@ -26,57 +27,62 @@ class Parser:
         i += 1
         if sym.type == expected_type and sym.value == expected_value:
             self.tree_list.append((str(sym), i))
+            current = sym
             sym = self.next_token()
+            i -= 1
+            return current
         else:
             raise ParserError(f'Expected {expected_value} of type {expected_type}, got {sym.value} of type {sym.type} at line {sym.line}, column {sym.column}')
-        i -= 1
         
     def accept_identifier(self):
         global sym, i
         i += 1
         if sym.type == 'IDENTIFIER':
             self.tree_list.append((str(sym), i))
+            current = sym
             sym = self.next_token()
+            i -= 1
+            return current
         else:
             raise ParserError(f'Expected IDENTIFIER, got {sym.value} at line {sym.line}, column {sym.column}')
-        i -= 1
+        
 
     def parse(self):
         global sym
         sym = self.next_token()
-        self.program()
-        return self.tree_list
+        ast = self.program()
+        return ast
     
     def program(self):
         global sym, i
-        self.tree_list.append(("<program>", i))
-        self.program_header()
-        self.declaration_part()
-        self.compound_statement()
+        self.tree_list.append(("<program>", i)) 
+        name = self.program_header()
+        declarations = self.declaration_part()
+        block = self.compound_statement()
         self.accept('DOT', '.')
+        return ProgramNode(name=name, declarations=declarations, block=block)
+
         
     def block(self):
         global sym,i
         i += 1
         self.tree_list.append(("<block>", i))
-        self.declaration_part()
-        self.compound_statement()
+        declarations = self.declaration_part()
+        compound_stmt = self.compound_statement()
         i -= 1
+        return BlockNode(declarations=declarations, compound_statement=compound_stmt)
 
     def type_definition(self):
         global sym,i
         i += 1
         self.tree_list.append(("<type_definition>", i))
+        result = None
         if sym.type == 'KEYWORD' and sym.value == 'larik':
-            self.accept('KEYWORD', 'larik')
-            self.accept('LBRACKET', '[')
-            self.range()
-            self.accept('RBRACKET', ']')
-            self.accept('KEYWORD', 'dari')
-            self.type()
+            result = self.array_type()
         else:
-            self.type()
+            result = self.type()
         i -= 1
+        return result
     
     def peek_next_token(self):
         if self.position < len(self.tokens):
@@ -89,383 +95,531 @@ class Parser:
         i += 1
         self.tree_list.append(("<program_header>", i))
         self.accept('KEYWORD', 'program')
-        self.accept_identifier()
+        name_token = self.accept_identifier()
         self.accept('SEMICOLON', ';')
         i -= 1
+        return name_token.value
 
     def declaration_part(self):
         global sym,i
         i += 1
         self.tree_list.append(("<declaration_part>", i))
+
+        declarations = []
+
         while sym.type == 'KEYWORD' and sym.value in ('konstanta', 'tipe', 'variabel'):
             if sym.value == 'konstanta':
-                self.constant_declaration()
+                declarations.extend(self.constant_declaration())
             elif sym.value == 'tipe':
-                self.type_declaration()
+                declarations.extend(self.type_declaration())
             elif sym.value == 'variabel':
-                self.var_declaration()
+                declarations.extend(self.var_declaration())
         while sym.type == 'KEYWORD' and (sym.value == 'prosedur' or sym.value == 'fungsi'):
-            self.subprogram_declaration()
+            declarations.append(self.subprogram_declaration())
+        
         i -= 1
+        return declarations
     
     def constant_declaration(self):
-        global sym,i
+        global sym, i
         i += 1
         self.tree_list.append(("<constant_declaration>", i))
+
+        const_nodes = []
+
         self.accept('KEYWORD', 'konstanta')
-        self.accept_identifier()
+        name_token = self.accept_identifier()
         self.accept('RELATIONAL_OPERATOR', '=')
+
+        value_node = None
         match sym.type:
             case 'NUMBER':
-                self.accept('NUMBER', sym.value)
+                num_token = self.accept('NUMBER', sym.value)
+                value_node = NumberNode(value=num_token.value)
             case 'ARITHMETIC_OPERATOR' if sym.value in ('+', '-'):
-                self.accept('ARITHMETIC_OPERATOR', sym.value)
-                self.accept('NUMBER', sym.value)
+                op_token = self.accept('ARITHMETIC_OPERATOR', sym.value)
+                num_token = self.accept('NUMBER', sym.value)
+                value_node = UnaryOpNode(op=op_token.value, operand=NumberNode(value=num_token.value))
             case 'STRING_LITERAL':
-                self.accept('STRING_LITERAL', sym.value)
+                str_token = self.accept('STRING_LITERAL', sym.value)
+                value_node = StringNode(value=str_token.value)
+
         self.accept('SEMICOLON', ';')
+        const_nodes.append(ConstDeclNode(name=name_token.value, value=value_node))
 
         while sym.type == 'IDENTIFIER':
-            self.accept_identifier()
+            name_token = self.accept_identifier()
             self.accept('RELATIONAL_OPERATOR', '=')
+
+            value_node = None
             match sym.type:
                 case 'NUMBER':
-                    self.accept('NUMBER', sym.value)
+                    num_token = self.accept('NUMBER', sym.value)
+                    value_node = NumberNode(value=num_token.value)
                 case 'ARITHMETIC_OPERATOR' if sym.value in ('+', '-'):
-                    self.accept('ARITHMETIC_OPERATOR', sym.value)
-                    self.accept('NUMBER', sym.value)
+                    op_token = self.accept('ARITHMETIC_OPERATOR', sym.value)
+                    num_token = self.accept('NUMBER', sym.value)
+                    value_node = UnaryOpNode(op=op_token.value, operand=NumberNode(value=num_token.value))
                 case 'STRING_LITERAL':
-                    self.accept('STRING_LITERAL', sym.value)
+                    str_token = self.accept('STRING_LITERAL', sym.value)
+                    value_node = StringNode(value=str_token.value)
+
             self.accept('SEMICOLON', ';')
+            const_nodes.append(ConstDeclNode(name=name_token.value, value=value_node))
+        
         i -= 1
-    
+        return const_nodes
+
     def type_declaration(self):
         global sym,i
         i += 1
         self.tree_list.append(("<type_declaration>", i))
+
+        type_nodes = []
+
         self.accept('KEYWORD', 'tipe')
-        self.accept_identifier()
+        name_token = self.accept_identifier()
         self.accept('RELATIONAL_OPERATOR', '=')
-        self.type_definition()
+        type_def = self.type_definition()
         self.accept('SEMICOLON', ';')
 
+        type_nodes.append(TypeDeclNode(name=name_token.value, type_name=type_def))
+
         while sym.type == 'IDENTIFIER':
-            self.accept_identifier()
+            name_token = self.accept_identifier()
             self.accept('RELATIONAL_OPERATOR', '=')
-            self.type_definition()
+            type_def = self.type_definition()
             self.accept('SEMICOLON', ';')
+            type_nodes.append(TypeDeclNode(name=name_token.value, type_name=type_def))
+        
         i -= 1
+        return type_nodes
     
     def var_declaration(self):
         global sym,i
         i += 1
         self.tree_list.append(("<var_declaration>", i))
+
+        var_nodes = []
+
         self.accept('KEYWORD', 'variabel')
-        self.identifier_list()
+        names = self.identifier_list()
         self.accept('COLON', ':')
-        self.type()
+        type_name = self.type()
         self.accept('SEMICOLON', ';')
 
+        var_nodes.append(VarDeclNode(names=names, type_name = type_name))
+
         while sym.type == 'IDENTIFIER':
-            self.identifier_list()
+            names = self.identifier_list()
             self.accept('COLON', ':')
-            self.type()
+            type_name = self.type()
             self.accept('SEMICOLON', ';')
+            var_nodes.append(VarDeclNode(names=names, type_name = type_name))
+        
         i -= 1
+        return var_nodes
 
     def identifier_list(self):
         global sym,i
         i += 1
         self.tree_list.append(("<identifier_list>", i))
-        self.accept_identifier()
+
+        names = []
+        name_token = self.accept_identifier()
+        names.append(name_token.value)
+
         while sym.type == 'COMMA' and sym.value == ',':
             self.accept('COMMA', ',')
-            self.accept_identifier()
+            name_token = self.accept_identifier()
+            names.append(name_token.value)
+        
         i -= 1
+        return names
     
     def type(self):
         global sym,i
         i += 1
         self.tree_list.append(("<type>", i))
+
+        type_name = None
         if sym.type == 'KEYWORD' and sym.value in ('integer', 'real', 'boolean', 'char'):
-            self.accept('KEYWORD', sym.value)
+            type_token = self.accept('KEYWORD', sym.value)
+            type_name = type_token.value
         elif sym.type == 'KEYWORD' and sym.value == 'larik':
-            self.array_type()
+            type_name = self.array_type()
         else:
-            self.accept_identifier()
+            id_token = self.accept_identifier()
+            type_name = id_token.value
+        
         i -= 1
+        return type_name
     
     def array_type(self):
         global sym,i
         i += 1
         self.tree_list.append(("<array_type>", i))
+
         self.accept('KEYWORD', 'larik')
         self.accept('LBRACKET', '[')
-        self.range()
+        range_node = self.range()
         self.accept('RBRACKET', ']')
         self.accept('KEYWORD', 'dari')
-        self.type()
+        element_type = self.type()
+        
         i -= 1
+        return ArrayTypeNode(index_range=range_node, element_type=element_type)
     
     def range(self):
         global sym,i
         i += 1
         self.tree_list.append(("<range>", i))
-        self.expression()
+
+        low_expr = self.expression()
         self.accept('RANGE_OPERATOR', '..')
-        self.expression()
+        high_expr = self.expression()
+        
         i -= 1
+        return RangeNode(low=low_expr, high=high_expr)
 
     def subprogram_declaration(self):
         global sym,i
         i += 1
         self.tree_list.append(("<subprogram_declaration>", i))
+
+        result = None
         if sym.type == 'KEYWORD' and sym.value == 'prosedur':
-            self.procedure_declaration()
+            result = self.procedure_declaration()
         elif sym.type == 'KEYWORD' and sym.value == 'fungsi':
-            self.function_declaration()
+            result = self.function_declaration()
+        
         i -= 1
+        return result
 
     def procedure_declaration(self):
         global sym,i
         i += 1
         self.tree_list.append(("<procedure_declaration>", i))
+
         self.accept('KEYWORD', 'prosedur')
-        self.accept_identifier()
+        name_token = self.accept_identifier()
+
+        params = []
+
         if sym.type != 'SEMICOLON' and sym.value != ';':
-            self.formal_parameter_list()
+            params = self.formal_parameter_list()
         self.accept('SEMICOLON', ';')
-        self.block()
+        block = self.block()
         self.accept('SEMICOLON', ';')
+        
         i -= 1
+        return ProcedureDeclNode(name=name_token.value, params=params, block=block)
 
     def function_declaration(self):
         global sym,i
         i += 1
         self.tree_list.append(("<function_declaration>", i))
+
         self.accept('KEYWORD', 'fungsi')
-        self.accept_identifier()
+        name_token = self.accept_identifier()
+
+        params = []
+
         if sym.type != 'COLON' and sym.value != ':':
-            self.formal_parameter_list()
+            params = self.formal_parameter_list()
+        
         self.accept('COLON', ':')
-        self.type()
+        return_type = self.type()
         self.accept('SEMICOLON', ';')
-        self.block()
+        block = self.block()
         self.accept('SEMICOLON', ';')
+        
         i -= 1
+        return FunctionDeclNode(name=name_token.value, params=params, return_type=return_type, block=block)
 
     def parameter_group(self):
         global sym,i
         i += 1
         self.tree_list.append(("<parameter_group>", i))
-        self.identifier_list()
+
+        names = self.identifier_list()
         self.accept('COLON', ':')
-        self.type()
+        type_name = self.type()
+        
         i -= 1
+        return ParameterNode(names=names, type_name=type_name)
 
     def formal_parameter_list(self):
         global sym,i
         i += 1
         self.tree_list.append(("<formal_parameter_list>", i))
+
+        params = []
         self.accept('LPARENTHESIS', '(')
-        self.parameter_group()
+        params.append(self.parameter_group())
+
         while sym.type == 'SEMICOLON' and sym.value == ';':
             self.accept('SEMICOLON',';')
-            self.parameter_group()
+            params.append(self.parameter_group())
         self.accept('RPARENTHESIS', ')')
+        
         i -= 1
+        return params
 
     def compound_statement(self):
         global sym,i
         i += 1
         self.tree_list.append(("<compound_statement>", i))
+        
         self.accept('KEYWORD', 'mulai')
-        self.statement_list()
+        statements = self.statement_list()
         self.accept('KEYWORD', 'selesai')
+        
         i -= 1
+        return CompoundStatementNode(statements=statements)
 
     def statement_list(self):
         global sym,i
         i += 1
         self.tree_list.append(("<statement_list>", i))
+
+        statements = []
+
         if sym.type == 'IDENTIFIER':
             next_token = self.peek_next_token()
             if next_token and next_token.type == 'ASSIGN_OPERATOR':
-                self.assignment_statement()
+                stmt = self.assignment_statement()
+                statements.append(stmt)
             else:
-                self.procedure_function_call()
+                stmt = self.procedure_function_call()
+                statements.append(stmt)
         else:
             if sym.value == 'mulai':
-                self.compound_statement()
+                stmt = self.compound_statement()
+                statements.append(stmt)
             elif sym.value == 'jika':
-                self.if_statement()
+                stmt = self.if_statement()
+                statements.append(stmt)
             elif sym.value == 'selama':
-                self.while_statement()
+                stmt = self.while_statement()
+                statements.append(stmt)
             elif sym.value == 'untuk':
-                self.for_statement()
+                stmt = self.for_statement()
+                statements.append(stmt)
             else:
                 pass
+
         while sym.type == 'SEMICOLON' and sym.value == ';':
             self.accept('SEMICOLON', ';')
+
+            if sym.value == 'selesai':
+                break
+
             if sym.type == 'IDENTIFIER':
                 next_token = self.peek_next_token()
                 if next_token and next_token.type == 'ASSIGN_OPERATOR':
-                    self.assignment_statement()
+                    stmt = self.assignment_statement()
+                    statements.append(stmt)
                 else:
-                    self.procedure_function_call()
+                    stmt = self.procedure_function_call()
+                    statements.append(stmt)
             else:
                 if sym.value == 'mulai':
-                    self.compound_statement()
+                    stmt = self.compound_statement()
+                    statements.append(stmt)
                 elif sym.value == 'jika':
-                    self.if_statement()
+                    stmt = self.if_statement()
+                    statements.append(stmt)
                 elif sym.value == 'selama':
-                    self.while_statement()
+                    stmt = self.while_statement()
+                    statements.append(stmt)
                 elif sym.value == 'untuk':
-                    self.for_statement()
+                    stmt = self.for_statement()
+                    statements.append(stmt)
                 else:
                     pass
         i -= 1
+        return statements
 
     def assignment_statement(self):
         global sym,i
         i += 1
         self.tree_list.append(("<assignment_statement>", i))
-        self.accept_identifier()
+
+        target_token = self.accept_identifier()
         self.accept('ASSIGN_OPERATOR', ':=')
-        self.expression()
+        value_expr = self.expression()
+        
         i -= 1
+        return AssignNode(target=VarNode(name=target_token.value), value=value_expr)
 
     def if_statement(self):
         global sym,i
         i += 1
         self.tree_list.append(("<if_statement>", i))
+
         self.accept('KEYWORD', 'jika')
-        self.expression()
+        condition = self.expression()
         self.accept('KEYWORD', 'maka')
+
+        then_stmt = None
         if sym.type == 'IDENTIFIER':
             next_token = self.peek_next_token()
             if next_token and next_token.type == 'ASSIGN_OPERATOR':
-                self.assignment_statement()
+                then_stmt = self.assignment_statement()
             else:
-                self.procedure_function_call()
+                then_stmt = self.procedure_function_call()
         else:
             if sym.value == 'mulai':
-                self.compound_statement()
+                then_stmt = self.compound_statement()
             elif sym.value == 'jika':
-                self.if_statement()
+                then_stmt = self.if_statement()
             elif sym.value == 'selama':
-                self.while_statement()
+                then_stmt = self.while_statement()
             elif sym.value == 'untuk':
-                self.for_statement()
+                then_stmt = self.for_statement()
             else:
                 pass
+
+        else_stmt = None
         if sym.type == 'KEYWORD' and sym.value == 'selain_itu':
             self.accept('KEYWORD', 'selain_itu')
             if sym.type == 'IDENTIFIER':
                 next_token = self.peek_next_token()
                 if next_token and next_token.type == 'ASSIGN_OPERATOR':
-                    self.assignment_statement()
+                    else_stmt = self.assignment_statement()
                 else:
-                    self.procedure_function_call()
+                    else_stmt = self.procedure_function_call()
             else:
                 if sym.value == 'mulai':
-                    self.compound_statement()
+                    else_stmt = self.compound_statement()
                 elif sym.value == 'jika':
-                    self.if_statement()
+                    else_stmt = self.if_statement()
                 elif sym.value == 'selama':
-                    self.while_statement()
+                    else_stmt = self.while_statement()
                 elif sym.value == 'untuk':
-                    self.for_statement()
+                    else_stmt = self.for_statement()
                 else:
                     pass
+        
         i -= 1
+        return IfNode(condition=condition, then_statement=then_stmt, else_statement=else_stmt)
 
     def while_statement(self):
         global sym,i
         i += 1
         self.tree_list.append(("<while_statement>", i))
+
         self.accept('KEYWORD', 'selama')
-        self.expression()
+        condition = self.expression()
         self.accept('KEYWORD', 'lakukan')
+
+        body = None
         if sym.type == 'IDENTIFIER':
             next_token = self.peek_next_token()
             if next_token and next_token.type == 'ASSIGN_OPERATOR':
-                self.assignment_statement()
+                body = self.assignment_statement()
             else:
-                self.procedure_function_call()
+                body = self.procedure_function_call()
         else:
             if sym.value == 'mulai':
-                self.compound_statement()
+                body = self.compound_statement()
             elif sym.value == 'jika':
-                self.if_statement()
+                body = self.if_statement()
             elif sym.value == 'selama':
-                self.while_statement()
+                body = self.while_statement()
             elif sym.value == 'untuk':
-                self.for_statement()
+                body = self.for_statement()
             else:
                 pass
+        
         i -= 1
+        return WhileNode(condition=condition, body=body)
 
     def for_statement(self):
         global sym,i
         i += 1
         self.tree_list.append(("<for_statement>", i))
+
         self.accept('KEYWORD', 'untuk')
-        self.accept_identifier()
+        var_token = self.accept_identifier()
         self.accept('ASSIGN_OPERATOR', ':=')
-        self.expression()
+        start_expr = self.expression()
+
+        is_downto = False
         if sym.type == 'KEYWORD' and sym.value in ('ke', 'turun_ke'):
-            self.accept('KEYWORD', sym.value)
-        self.expression()
+            direction = self.accept('KEYWORD', sym.value)
+            is_downto = (direction.value == 'turun_ke')
+
+        end_expr = self.expression()
         self.accept('KEYWORD', 'lakukan')
+
+        body = None
         if sym.type == 'IDENTIFIER':
             next_token = self.peek_next_token()
             if next_token and next_token.type == 'ASSIGN_OPERATOR':
-                self.assignment_statement()
+                body = self.assignment_statement()
             else:
-                self.procedure_function_call()
+                body = self.procedure_function_call()
         else:
             if sym.value == 'mulai':
-                self.compound_statement()
+                body = self.compound_statement()
             elif sym.value == 'jika':
-                self.if_statement()
+                body = self.if_statement()
             elif sym.value == 'selama':
-                self.while_statement()
+                body = self.while_statement()
             elif sym.value == 'untuk':
-                self.for_statement()
+                body = self.for_statement()
             else:
                 pass
+        
         i -= 1
+        return ForNode(var=VarNode(name=var_token.value), start_expr=start_expr, end_expr=end_expr, body=body, is_downto=is_downto)
 
     def procedure_function_call(self):
         global sym,i
         i += 1
         self.tree_list.append(("<procedure_function_call>", i))
-        self.accept_identifier()
+
+        name_token = self.accept_identifier()
         self.accept('LPARENTHESIS', '(')
-        self.parameter_list()
+        arguments = self.parameter_list()
         self.accept('RPARENTHESIS', ')')
+        
         i -= 1
+        return ProcedureFunctionCallNode(name=name_token.value, arguments=arguments)
         
     def parameter_list(self):
         global sym,i
         i += 1
         self.tree_list.append(("<parameter_list>", i))
-        self.expression()
-        while sym.type == 'COMMA' and sym.value == ',':
-            self.accept('COMMA', ',')
-            self.expression()
+
+        params = []
+
+        if sym.type != 'RPARENTHESIS':
+            params.append(self.expression())
+            
+            while sym.type == 'COMMA' and sym.value == ',':
+                self.accept('COMMA', ',')
+                params.append(self.expression())
+        
         i -= 1
+        return params
 
     def expression(self):
         global sym,i
         i += 1
         self.tree_list.append(("<expression>", i))
-        self.simple_expression()
+        left = self.simple_expression()
+
         if sym.type == 'RELATIONAL_OPERATOR':
-            self.accept('RELATIONAL_OPERATOR', sym.value)
-            self.simple_expression()
+            op_token = self.accept('RELATIONAL_OPERATOR', sym.value)
+            right = self.simple_expression()
+            i -= 1
+            return BinOpNode(left=left, op=op_token.value, right=right)
+        
         i -= 1
+        return left
 
     def simple_expression(self):
         global sym,i
@@ -483,39 +637,61 @@ class Parser:
         global sym,i
         i += 1
         self.tree_list.append(("<term>", i))
-        self.factor()
-        while (sym.type == 'ARITHMETIC_OPERATOR' and sym.value in ('*', '/')) or (sym.type == 'KEYWORD' and sym.value in ('bagi', 'mod', 'dan')):
-            self.multiplicative_operator()
-            self.factor()
+        left = self.factor()
+        while ((sym.type == 'ARITHMETIC_OPERATOR' and sym.value in ('*', '/')) or (sym.type == 'KEYWORD' and sym.value in ('bagi', 'mod', 'dan'))):
+            if sym.type == 'ARITHMETIC_OPERATOR':
+                op_token = self.accept('ARITHMETIC_OPERATOR', sym.value)
+            else:
+                op_token = self.accept('KEYWORD', sym.value)
+            
+            right = self.factor()
+            left = BinOpNode(left=left, op=op_token.value, right=right)
+        
         i -= 1
+        return left
 
 
     def factor(self):
-        global sym,i
+        global sym, i
         i += 1
         self.tree_list.append(("<factor>", i))
+        
+        result = None
+        
         match sym.type:
             case 'IDENTIFIER':
                 next_token = self.peek_next_token()
                 if next_token and next_token.type == 'LPARENTHESIS':
-                    self.procedure_function_call()
+                    result = self.procedure_function_call()
                 else:
-                    self.accept_identifier()
+                    id_token = self.accept_identifier()
+                    result = VarNode(name=id_token.value)
+            
             case 'NUMBER': 
-                self.accept('NUMBER',sym.value)
+                num_token = self.accept('NUMBER', sym.value)
+                result = NumberNode(value=num_token.value)
+            
             case 'CHAR_LITERAL':
-                self.accept('CHAR_LITERAL',sym.value)
+                char_token = self.accept('CHAR_LITERAL', sym.value)
+                result = CharNode(value=char_token.value)
+            
             case 'STRING_LITERAL': 
-                self.accept('STRING_LITERAL',sym.value)
+                str_token = self.accept('STRING_LITERAL', sym.value)
+                result = StringNode(value=str_token.value)
+            
             case 'LPARENTHESIS':
                 self.accept('LPARENTHESIS', '(')
-                self.expression()
-                self.accept('RPARENTHESIS',')')
+                result = self.expression()
+                self.accept('RPARENTHESIS', ')')
+            
             case 'KEYWORD': 
                 if sym.value == 'tidak':
-                    self.accept('KEYWORD','tidak')
-                    self.factor()
+                    self.accept('KEYWORD', 'tidak')
+                    operand = self.factor()
+                    result = UnaryOpNode(op='tidak', operand=operand)
+        
         i -= 1
+        return result
     
     def relational_operator(self):
         global sym,i
