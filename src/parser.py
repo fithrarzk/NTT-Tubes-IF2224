@@ -135,17 +135,17 @@ class Parser:
         match sym.type:
             case 'NUMBER':
                 num_token = self.accept('NUMBER', sym.value)
-                value_node = NumberNode(value=num_token.value)
+                value_node = NumberNode(value=num_token.value, line=num_token.line, column=num_token.column)
             case 'ARITHMETIC_OPERATOR' if sym.value in ('+', '-'):
                 op_token = self.accept('ARITHMETIC_OPERATOR', sym.value)
                 num_token = self.accept('NUMBER', sym.value)
-                value_node = UnaryOpNode(op=op_token.value, operand=NumberNode(value=num_token.value))
+                value_node = UnaryOpNode(op=op_token.value, operand=NumberNode(value=num_token.value, line=num_token.line, column=num_token.column), line=op_token.line, column=op_token.column)
             case 'STRING_LITERAL':
                 str_token = self.accept('STRING_LITERAL', sym.value)
-                value_node = StringNode(value=str_token.value)
+                value_node = StringNode(value=str_token.value, line=str_token.line, column=str_token.column)
 
         self.accept('SEMICOLON', ';')
-        const_nodes.append(ConstDeclNode(name=name_token.value, value=value_node))
+        const_nodes.append(ConstDeclNode(name=name_token.value, value=value_node, line=name_token.line, column=name_token.column))
 
         while sym.type == 'IDENTIFIER':
             name_token = self.accept_identifier()
@@ -202,20 +202,22 @@ class Parser:
 
         var_nodes = []
 
+        first_token = sym  # simpan token awal untuk line/column
         self.accept('KEYWORD', 'variabel')
         names = self.identifier_list()
         self.accept('COLON', ':')
         type_name = self.type()
         self.accept('SEMICOLON', ';')
 
-        var_nodes.append(VarDeclNode(names=names, type_name = type_name))
+        var_nodes.append(VarDeclNode(names=names, type_name = type_name, line=first_token.line, column=first_token.column))
 
         while sym.type == 'IDENTIFIER':
+            first_id_token = sym
             names = self.identifier_list()
             self.accept('COLON', ':')
             type_name = self.type()
             self.accept('SEMICOLON', ';')
-            var_nodes.append(VarDeclNode(names=names, type_name = type_name))
+            var_nodes.append(VarDeclNode(names=names, type_name = type_name, line=first_id_token.line, column=first_id_token.column))
         
         i -= 1
         return var_nodes
@@ -451,14 +453,14 @@ class Parser:
         value_expr = self.expression()
         
         i -= 1
-        return AssignNode(target=VarNode(name=target_token.value), value=value_expr)
+        return AssignNode(target=VarNode(name=target_token.value, line=target_token.line, column=target_token.column), value=value_expr, line=target_token.line, column=target_token.column)
 
     def if_statement(self):
         global sym,i
         i += 1
         self.tree_list.append(("<if_statement>", i))
 
-        self.accept('KEYWORD', 'jika')
+        if_keyword = self.accept('KEYWORD', 'jika')
         condition = self.expression()
         self.accept('KEYWORD', 'maka')
 
@@ -503,14 +505,14 @@ class Parser:
                     pass
         
         i -= 1
-        return IfNode(condition=condition, then_statement=then_stmt, else_statement=else_stmt)
+        return IfNode(condition=condition, then_statement=then_stmt, else_statement=else_stmt, line=if_keyword.line, column=if_keyword.column)
 
     def while_statement(self):
         global sym,i
         i += 1
         self.tree_list.append(("<while_statement>", i))
 
-        self.accept('KEYWORD', 'selama')
+        while_keyword = self.accept('KEYWORD', 'selama')
         condition = self.expression()
         self.accept('KEYWORD', 'lakukan')
 
@@ -534,14 +536,14 @@ class Parser:
                 pass
         
         i -= 1
-        return WhileNode(condition=condition, body=body)
+        return WhileNode(condition=condition, body=body, line=while_keyword.line, column=while_keyword.column)
 
     def for_statement(self):
         global sym,i
         i += 1
         self.tree_list.append(("<for_statement>", i))
 
-        self.accept('KEYWORD', 'untuk')
+        for_keyword = self.accept('KEYWORD', 'untuk')
         var_token = self.accept_identifier()
         self.accept('ASSIGN_OPERATOR', ':=')
         start_expr = self.expression()
@@ -574,7 +576,7 @@ class Parser:
                 pass
         
         i -= 1
-        return ForNode(var=VarNode(name=var_token.value), start_expr=start_expr, end_expr=end_expr, body=body, is_downto=is_downto)
+        return ForNode(var=VarNode(name=var_token.value, line=var_token.line, column=var_token.column), start_expr=start_expr, end_expr=end_expr, body=body, is_downto=is_downto, line=for_keyword.line, column=for_keyword.column)
 
     def procedure_function_call(self):
         global sym,i
@@ -616,7 +618,7 @@ class Parser:
             op_token = self.accept('RELATIONAL_OPERATOR', sym.value)
             right = self.simple_expression()
             i -= 1
-            return BinOpNode(left=left, op=op_token.value, right=right)
+            return BinOpNode(left=left, op=op_token.value, right=right, line=op_token.line, column=op_token.column)
         
         i -= 1
         return left
@@ -625,13 +627,30 @@ class Parser:
         global sym,i
         i += 1
         self.tree_list.append(("<simple_expression>", i))
+        
+        sign_token = None
         if sym.type == 'ARITHMETIC_OPERATOR' and sym.value in ('+', '-'):
-            self.accept('ARITHMETIC_OPERATOR', sym.value)
-        self.term()
+            sign_token = self.accept('ARITHMETIC_OPERATOR', sym.value)
+        
+        left = self.term()
+        
+        # Apply unary operator jika ada
+        if sign_token:
+            left = UnaryOpNode(op=sign_token.value, operand=left, line=sign_token.line, column=sign_token.column)
+        
         while sym.type == 'ARITHMETIC_OPERATOR' and sym.value in ('+', '-'):
-            self.additive_operator()
-            self.term()
+            op_token = self.accept('ARITHMETIC_OPERATOR', sym.value)
+            right = self.term()
+            left = BinOpNode(left=left, op=op_token.value, right=right, line=op_token.line, column=op_token.column)
+        
+        # Handle 'atau' (logical OR)
+        while sym.type == 'KEYWORD' and sym.value == 'atau':
+            op_token = self.accept('KEYWORD', 'atau')
+            right = self.term()
+            left = BinOpNode(left=left, op=op_token.value, right=right, line=op_token.line, column=op_token.column)
+        
         i -= 1
+        return left
 
     def term(self):
         global sym,i
@@ -645,7 +664,7 @@ class Parser:
                 op_token = self.accept('KEYWORD', sym.value)
             
             right = self.factor()
-            left = BinOpNode(left=left, op=op_token.value, right=right)
+            left = BinOpNode(left=left, op=op_token.value, right=right, line=op_token.line, column=op_token.column)
         
         i -= 1
         return left
@@ -665,19 +684,19 @@ class Parser:
                     result = self.procedure_function_call()
                 else:
                     id_token = self.accept_identifier()
-                    result = VarNode(name=id_token.value)
+                    result = VarNode(name=id_token.value, line=id_token.line, column=id_token.column)
             
             case 'NUMBER': 
                 num_token = self.accept('NUMBER', sym.value)
-                result = NumberNode(value=num_token.value)
+                result = NumberNode(value=num_token.value, line=num_token.line, column=num_token.column)
             
             case 'CHAR_LITERAL':
                 char_token = self.accept('CHAR_LITERAL', sym.value)
-                result = CharNode(value=char_token.value)
+                result = CharNode(value=char_token.value, line=char_token.line, column=char_token.column)
             
             case 'STRING_LITERAL': 
                 str_token = self.accept('STRING_LITERAL', sym.value)
-                result = StringNode(value=str_token.value)
+                result = StringNode(value=str_token.value, line=str_token.line, column=str_token.column)
             
             case 'LPARENTHESIS':
                 self.accept('LPARENTHESIS', '(')
@@ -686,9 +705,9 @@ class Parser:
             
             case 'KEYWORD': 
                 if sym.value == 'tidak':
-                    self.accept('KEYWORD', 'tidak')
+                    not_token = self.accept('KEYWORD', 'tidak')
                     operand = self.factor()
-                    result = UnaryOpNode(op='tidak', operand=operand)
+                    result = UnaryOpNode(op='tidak', operand=operand, line=not_token.line, column=not_token.column)
         
         i -= 1
         return result

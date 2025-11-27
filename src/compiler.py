@@ -5,6 +5,8 @@ import sys
 from .dfa_load import DFARules
 from .lexer import Lexer, LexerError
 from .parser import Parser, ParserError
+from .symbol_table import SymbolTables
+from .type_checker import TypeChecker
 
 def main():
     parser = argparse.ArgumentParser(description='Pascal-S Lexer (Milestone 1)')
@@ -39,7 +41,16 @@ def main():
         print('Parser error:', pe, file=sys.stderr)
         sys.exit(4)
 
-    print_parse_tree(list_tokens)
+    symtab = SymbolTables()
+    type_checker = TypeChecker(symtab)
+    try:
+        decorated_ast = type_checker.visit_ProgramNode(list_tokens)
+        type_checker.print_symbol_table()
+    except TypeError as te:
+        print(te, file=sys.stderr)
+        sys.exit(5)
+
+    # print_parse_tree(list_tokens)
 
 def print_parse_tree(list_tokens):
     if not list_tokens:

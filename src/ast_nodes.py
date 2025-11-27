@@ -1,18 +1,20 @@
 class ASTNode:
     #Base class buat semua AST Nodes
 
-    def __init__(self):
+    def __init__(self, line=None, column=None):
         self.type = None #disetnya pas type checking
         self.scope_level = None
         self.tab_index = None   # reference ke symbol table
+        self.line = line  # line number dari source code
+        self.column = column  # column number dari source code
 
     def __repr__(self):
         return f"{self.__class__.__name__}()"
     
 class ProgramNode(ASTNode):
     #Node buat keseluruhan program
-    def __init__(self, name, declarations, block):
-        super().__init__()
+    def __init__(self, name, declarations, block, line=None, column=None):
+        super().__init__(line, column)
         self.name = name
         self.declarations = declarations #list of declarations nodes
         self.block = block  # compound statement node
@@ -22,8 +24,8 @@ class ProgramNode(ASTNode):
     
 class BlockNode(ASTNode):
     #Node buat block program (declarations + compound statement)
-    def __init__(self, declarations, compound_statement):
-        super().__init__()
+    def __init__(self, declarations, compound_statement, line=None, column=None):
+        super().__init__(line, column)
         self.declarations = declarations  #list of declarations nodes
         self.compound_statement = compound_statement  #compound statement node
 
@@ -32,8 +34,8 @@ class BlockNode(ASTNode):
     
 class CompoundStatementNode(ASTNode):
     #Node buat compound statement (BEGIN ... END)
-    def __init__(self, statements):
-        super().__init__()
+    def __init__(self, statements, line=None, column=None):
+        super().__init__(line, column)
         self.statements = statements  #list of statement nodes
 
     def __repr__(self):
@@ -41,8 +43,8 @@ class CompoundStatementNode(ASTNode):
     
 class VarDeclNode(ASTNode):
     #Node buat deklarasi variabel
-    def __init__(self, names, type_name):
-        super().__init__()
+    def __init__(self, names, type_name, line=None, column=None):
+        super().__init__(line, column)
         self.names = names  #list of identifier strings
         self.type_name = type_name  #type string or typenode
 
@@ -51,8 +53,8 @@ class VarDeclNode(ASTNode):
     
 class ConstDeclNode(ASTNode):
     #Node buat deklarasi konstanta
-    def __init__(self, name, value):
-        super().__init__()
+    def __init__(self, name, value, line=None, column=None):
+        super().__init__(line, column)
         self.name = name  #identifier string
         self.value = value  # NumberNode, StringNode, or UnaryOpNode
 
@@ -61,8 +63,8 @@ class ConstDeclNode(ASTNode):
     
 class TypeDeclNode(ASTNode):
     #Node buat tipe data
-    def __init__(self, name, type_name):
-        super().__init__()
+    def __init__(self, name, type_name, line=None, column=None):
+        super().__init__(line, column)
         self.name = name  #identifier string
         self.type_name = type_name  #TypeNode or ArrayTypeNode
 
@@ -71,8 +73,8 @@ class TypeDeclNode(ASTNode):
     
 class ProcedureDeclNode(ASTNode):
     #Node buat deklarasi prosedur
-    def __init__(self, name, params, block):
-        super().__init__()
+    def __init__(self, name, params, block, line=None, column=None):
+        super().__init__(line, column)
         self.name = name
         self.params = params #List of parameternode
         self.block = block  #blocknode
@@ -82,8 +84,8 @@ class ProcedureDeclNode(ASTNode):
     
 class FunctionDeclNode(ASTNode):
     #Node buat deklarasi fungsi
-    def __init__(self, name, params, return_type, block):
-        super().__init__()
+    def __init__(self, name, params, return_type, block, line=None, column=None):
+        super().__init__(line, column)
         self.name = name
         self.params = params #List of parameternode
         self.return_type = return_type
@@ -94,8 +96,8 @@ class FunctionDeclNode(ASTNode):
     
 class ParameterNode(ASTNode):
     #Node buat parameter prosedur/fungsi
-    def __init__(self, names, type_name):
-        super().__init__()
+    def __init__(self, names, type_name, line=None, column=None):
+        super().__init__(line, column)
         self.names = names  #list of identifier strings
         self.type_name = type_name  #type string
 
@@ -104,8 +106,8 @@ class ParameterNode(ASTNode):
     
 class TypeNode(ASTNode):
     #node buat tipe dasar (integer, real, dll)
-    def __init__(self, name, type_name):
-        super().__init__()
+    def __init__(self, name, type_name, line=None, column=None):
+        super().__init__(line, column)
         self.type_name = type_name  #string
         self.type = type_name
     
@@ -114,8 +116,8 @@ class TypeNode(ASTNode):
     
 class ArrayTypeNode(ASTNode):
     #node buat tipe array
-    def __init__(self, index_range, element_type):
-        super().__init__()
+    def __init__(self, index_range, element_type, line=None, column=None):
+        super().__init__(line, column)
         self.index_range = index_range  #RangeNode
         self.element_type = element_type  #TypeNode or ArrayTypeNode
 
@@ -124,8 +126,8 @@ class ArrayTypeNode(ASTNode):
     
 class RangeNode(ASTNode):
     #node buat range (low - high)
-    def __init__(self, low, high):
-        super().__init__()
+    def __init__(self, low, high, line=None, column=None):
+        super().__init__(line, column)
         self.low = low  # Expression node
         self.high = high   # Expression node
 
@@ -134,8 +136,8 @@ class RangeNode(ASTNode):
     
 class AssignNode(ASTNode):
     #node buat assignment statement
-    def __init__(self, target, value):
-        super().__init__()
+    def __init__(self, target, value, line=None, column=None):
+        super().__init__(line, column)
         self.target = target  # VarNode
         self.value = value  # Expression node
 
@@ -144,8 +146,8 @@ class AssignNode(ASTNode):
     
 class IfNode(ASTNode):
     #node buat if statement
-    def __init__(self, condition, then_statement, else_statement=None):
-        super().__init__()
+    def __init__(self, condition, then_statement, else_statement=None, line=None, column=None):
+        super().__init__(line, column)
         self.condition = condition  #expression node
         self.then_statement = then_statement    # statement node
         self.else_statement = else_statement    # statement node or None
@@ -155,8 +157,8 @@ class IfNode(ASTNode):
     
 class WhileNode(ASTNode):
     #node buat while statement
-    def __init__(self, condition, body):
-        super().__init__()
+    def __init__(self, condition, body, line=None, column=None):
+        super().__init__(line, column)
         self.condition = condition
         self.body = body    #statement node
 
@@ -165,8 +167,8 @@ class WhileNode(ASTNode):
     
 class ForNode(ASTNode):
     #node buat for statement
-    def __init__(self, var, start_expr, end_expr, body, is_downto = False):
-        super().__init__()
+    def __init__(self, var, start_expr, end_expr, body, is_downto = False, line=None, column=None):
+        super().__init__(line, column)
         self.var = var  #VarNode
         self.start_expr = start_expr  #expression node
         self.end_expr = end_expr  #expression node
@@ -179,8 +181,8 @@ class ForNode(ASTNode):
     
 class ProcedureFunctionCallNode(ASTNode):
     #Node buat procedure/function call
-    def __init__(self, name, arguments):
-        super().__init__()
+    def __init__(self, name, arguments, line=None, column=None):
+        super().__init__(line, column)
         self.name = name #Procedure/function name (string)
         self.arguments = arguments #list of expression
 
@@ -189,8 +191,8 @@ class ProcedureFunctionCallNode(ASTNode):
     
 class BinOpNode(ASTNode):
     #node buat binary operation
-    def __init__(self, left, op, right):
-        super().__init__()
+    def __init__(self, left, op, right, line=None, column=None):
+        super().__init__(line, column)
         self.left = left  #expression node 
         self.op = op      #operator string (+, -, *, /, =, <>, <, >, <=, >=, dan, atau, dll)
         self.right = right  #expression node
@@ -200,8 +202,8 @@ class BinOpNode(ASTNode):
 
 class UnaryOpNode(ASTNode):
     #node buat unary operation
-    def __init__(self, op, operand):
-        super().__init__()
+    def __init__(self, op, operand, line=None, column=None):
+        super().__init__(line, column)
         self.op = op  #operator string (+, -, not)
         self.operand = operand  #expression node
 
@@ -210,8 +212,8 @@ class UnaryOpNode(ASTNode):
     
 class NumberNode(ASTNode):
     #node buat literal number
-    def __init__(self, value):
-        super().__init__()
+    def __init__(self, value, line=None, column=None):
+        super().__init__(line, column)
         self.value = value  #numeric value
         if isinstance(value, str):
             if '.' in value or 'e' in value.lower():
@@ -228,8 +230,8 @@ class NumberNode(ASTNode):
     
 class StringNode(ASTNode):
     #node buat literal string
-    def __init__(self, value):
-        super().__init__()
+    def __init__(self, value, line=None, column=None):
+        super().__init__(line, column)
         self.value = value  #string value
         self.type = 'string'
 
@@ -238,8 +240,8 @@ class StringNode(ASTNode):
     
 class CharNode(ASTNode):
     #node buat literal char
-    def __init__(self, value):
-        super().__init__()
+    def __init__(self, value, line=None, column=None):
+        super().__init__(line, column)
         self.value = value  #char value
         self.type = 'char'
 
@@ -248,8 +250,8 @@ class CharNode(ASTNode):
     
 class VarNode(ASTNode):
     #node buat variabel
-    def __init__(self, name):
-        super().__init__()
+    def __init__(self, name, line=None, column=None):
+        super().__init__(line, column)
         self.name = name  #variable name (string)
 
     def __repr__(self):
@@ -257,8 +259,8 @@ class VarNode(ASTNode):
     
 class ArrayAccessNode(ASTNode):
     #node buat akses elemen array
-    def __init__(self, array_var, index_expression):
-        super().__init__()
+    def __init__(self, array_var, index_expression, line=None, column=None):
+        super().__init__(line, column)
         self.array_var = array_var  #VarNode
         self.index_expression = index_expression  #expression node
     
@@ -267,8 +269,8 @@ class ArrayAccessNode(ASTNode):
     
 class NoOpNode(ASTNode):
     #node buat no operation (kosong)
-    def __init__(self):
-        super().__init__()
+    def __init__(self, line=None, column=None):
+        super().__init__(line, column)
 
     def __repr__(self):
         return "NoOpNode()"
