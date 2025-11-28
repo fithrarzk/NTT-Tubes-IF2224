@@ -75,6 +75,12 @@ class TypeChecker:
     def visit_VarDeclNode(self, node: VarDeclNode):
         var_type = self.resolve_type(node.type_name)
         
+        # Check if array type
+        atab_ref = 0
+        actual_type = var_type
+        if isinstance(var_type, tuple):
+            actual_type, atab_ref = var_type
+        
         for var_name in node.names:
             existing = self.symbol_tables.lookup(var_name)
             if existing is not None:
@@ -87,16 +93,17 @@ class TypeChecker:
             idx = self.symbol_tables.add_symbol(
                 identifier=var_name,
                 obj=ObjKind.VARIABLE,
-                typ=var_type,
+                typ=actual_type,
+                ref=atab_ref,
                 nrm=1  # normal variable
             )
             if self.symbol_tables.level < len(self.symbol_tables.btab):
                 self.symbol_tables.btab[self.symbol_tables.level].vsze += 1
         
-        node.type = var_type
+        node.type = actual_type
         node.scope_level = self.symbol_tables.level
         
-        return var_type
+        return actual_type
     
     def visit_ConstDeclNode(self, node: ConstDeclNode):
         value_type = self.visit(node.value)
@@ -342,22 +349,35 @@ class TypeChecker:
         return node.type  # 'char'
     
     def visit_ArrayAccessNode(self, node: ArrayAccessNode):
-        array_type = self.visit(node.array_var)
+        # Get the array variable's type
+        array_var_idx = self.symbol_tables.lookup(node.array_var.name)
         
-        if not isinstance(array_type, str) or not array_type.startswith('array'):
-            self.error(f"'{node.array_var.name}' is not an array", node)
+        if array_var_idx is None:
+            self.error(f"Undeclared array '{node.array_var.name}'", node)
             return TypeKind.UNKNOWN
         
+        array_entry = self.symbol_tables.tab[array_var_idx]
+        
+        # Check if it's actually an array
+        if array_entry.type != TypeKind.ARRAY:
+            self.error(f"'{node.array_var.name}' is not an array (type={array_entry.type})", node)
+            return TypeKind.UNKNOWN
+        
+        # Check index type
         index_type = self.visit(node.index_expression)
-        
         if index_type != TypeKind.INTEGER:
-            self.error(f"Array index must be integer, got {index_type}", node)
+            self.error(f"Array index must be integer, got {TypeKind.to_string(index_type)}", node)
         
-        if array_type.startswith("array of "):
-            element_type = array_type[len("array of "):]
+        # Look up in atab to get element type
+        atab_index = array_entry.ref
+        if atab_index < len(self.symbol_tables.atab):
+            atab_entry = self.symbol_tables.atab[atab_index]
+            element_type = atab_entry.etyp
+            
             node.type = element_type
             return element_type
         else:
+            self.error(f"Invalid array table reference for '{node.array_var.name}'", node)
             node.type = TypeKind.UNKNOWN
             return TypeKind.UNKNOWN
     
@@ -368,8 +388,16 @@ class TypeChecker:
     def resolve_type(self, type_name):
         if isinstance(type_name, str):
             # Built-in types
-            if type_name in ('integer', 'real', 'boolean', 'char', 'string'):
-                return type_name
+            type_map = {
+                'integer': TypeKind.INTEGER,
+                'real': TypeKind.REAL,
+                'boolean': TypeKind.BOOLEAN,
+                'char': TypeKind.CHAR,
+                'string': TypeKind.STRING
+            }
+            
+            if type_name.lower() in type_map:
+                return type_map[type_name.lower()]
             
             idx = self.symbol_tables.lookup(type_name)
             if idx is not None:
@@ -384,7 +412,31 @@ class TypeChecker:
         
         elif isinstance(type_name, ArrayTypeNode):
             element_type = self.resolve_type(type_name.element_type)
-            return f"array of {element_type}"
+            
+            if hasattr(type_name.index_range, 'low') and hasattr(type_name.index_range, 'high'):
+                low = type_name.index_range.low
+                high = type_name.index_range.high
+                
+                # Calculate array size
+                element_size = 1  # Simplified
+                array_size = (high - low + 1) * element_size
+                
+                # Add to atab and return the index
+                atab_index = self.symbol_tables.add_array_type(
+                    xtyp=TypeKind.ARRAY, 
+                    etyp=element_type,   
+                    eref=0,            
+                    low=low,              
+                    high=high,             
+                    elsz=element_size,    
+                    size=array_size        
+                )
+                
+                return (TypeKind.ARRAY, atab_index)
+            else:
+                dummy_node = type('',(object,),{'line':0,'column':0})()
+                self.error(f"Invalid array index range", dummy_node)
+                return TypeKind.UNKNOWN
         
         else:
             return TypeKind.UNKNOWN
@@ -455,11 +507,11 @@ class TypeChecker:
     
     def print_symbol_table(self):
         print("\n=== SYMBOL TABLE (TAB) ===")
-        print(f"{'Idx':<5} {'ID':<15} {'Obj':<12} {'Type':<10} {'Ref':<5} {'Nrm':<5} {'Lev':<5} {'Adr':<5} {'Link':<5}")
-        print("-" * 75)
+        print(f"{'Idx':<5} {'ID':<15} {'Obj':<12} {'Type':<15} {'Ref':<5} {'Nrm':<5} {'Lev':<5} {'Adr':<5} {'Link':<5}")
+        print("-" * 85)
         for i, entry in enumerate(self.symbol_tables.tab):
-            print(f"{i:<5} {entry.identifier:<15} {entry.obj:<12} {entry.type:<10} {entry.ref:<5} {entry.nrm:<5} {entry.lev:<5} {entry.adr:<5} {entry.link:<5}")
-        
+            print(f"{i:<5} {entry.identifier:<15} {entry.obj:<12} {entry.type:<5} {entry.ref:<5} {entry.nrm:<5} {entry.lev:<5} {entry.adr:<5} {entry.link:<5}")
+
         print("\n=== BLOCK TABLE (BTAB) ===")
         print(f"{'Idx':<5} {'Last':<6} {'Lpar':<6} {'Psze':<6} {'Vsze':<6}")
         print("-" * 35)

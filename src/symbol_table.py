@@ -8,13 +8,31 @@ class ObjKind:
 
 
 class TypeKind:
-    INTEGER = "integer"
-    REAL = "real"
-    BOOLEAN = "boolean"
-    CHAR = "char"
-    STRING = "string"
-    ARRAY = "array"
-    UNKNOWN = "unknown"
+    UNKNOWN = 0
+    INTEGER = 1
+    REAL = 2
+    BOOLEAN = 3
+    CHAR = 4
+    STRING = 5
+    ARRAY = 6
+    RECORD = 7
+    
+    # convert numeric code to string name
+    @staticmethod
+    def to_string(type_code):
+        type_names = {
+            0: "unknown",
+            1: "integer",
+            2: "real",
+            3: "boolean",
+            4: "char",
+            5: "string",
+            6: "array",
+            7: "record"
+        }
+        if isinstance(type_code, int):
+            return type_names.get(type_code, f"type_{type_code}")
+        return str(type_code)  # For backward compatibility with string types
 
 class SymbolTableEntry:
     def __init__(self, identifier, link, obj, typ, ref, nrm, lev, adr):

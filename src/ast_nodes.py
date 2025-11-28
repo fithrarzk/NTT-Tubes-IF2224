@@ -215,15 +215,16 @@ class NumberNode(ASTNode):
     def __init__(self, value, line=None, column=None):
         super().__init__(line, column)
         self.value = value  #numeric value
+        from .symbol_table import TypeKind
         if isinstance(value, str):
             if '.' in value or 'e' in value.lower():
-                self.type = 'real'
+                self.type = TypeKind.REAL
             else:
-                self.type = 'integer'
+                self.type = TypeKind.INTEGER
         elif isinstance(value, int):
-            self.type = 'integer'
+            self.type = TypeKind.INTEGER
         else:
-            self.type = 'real'
+            self.type = TypeKind.REAL
 
     def __repr__(self):
         return f"NumberNode(value={self.value})"
@@ -233,7 +234,8 @@ class StringNode(ASTNode):
     def __init__(self, value, line=None, column=None):
         super().__init__(line, column)
         self.value = value  #string value
-        self.type = 'string'
+        from .symbol_table import TypeKind
+        self.type = TypeKind.STRING
 
     def __repr__(self):
         return f"StringNode(value='{self.value}')"
@@ -243,7 +245,8 @@ class CharNode(ASTNode):
     def __init__(self, value, line=None, column=None):
         super().__init__(line, column)
         self.value = value  #char value
-        self.type = 'char'
+        from .symbol_table import TypeKind
+        self.type = TypeKind.CHAR
 
     def __repr__(self):
         return f"CharNode(value='{self.value}')"
