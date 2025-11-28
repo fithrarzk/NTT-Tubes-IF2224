@@ -447,12 +447,21 @@ class Parser:
         self.tree_list.append(("<assignment_statement>", i))
 
         target_token = self.accept_identifier()
+        
+        if sym.type == 'LBRACKET':
+            self.accept('LBRACKET', '[')
+            index_expr = self.expression()
+            self.accept('RBRACKET', ']')
+            target = ArrayAccessNode(array_name=target_token.value, index=index_expr)
+        else:
+            target = VarNode(name=target_token.value)
+
         self.accept('ASSIGN_OPERATOR', ':=')
         value_expr = self.expression()
         
         i -= 1
-        return AssignNode(target=VarNode(name=target_token.value), value=value_expr)
-
+        return AssignNode(target=target, value=value_expr)
+    
     def if_statement(self):
         global sym,i
         i += 1
@@ -663,6 +672,12 @@ class Parser:
                 next_token = self.peek_next_token()
                 if next_token and next_token.type == 'LPARENTHESIS':
                     result = self.procedure_function_call()
+                elif next_token and next_token.type == 'LBRACKET':
+                    id_token = self.accept_identifier()
+                    self.accept('LBRACKET', '[')
+                    index_expr = self.expression()
+                    self.accept('RBRACKET', ']')
+                    result = ArrayAccessNode(array_name=id_token.value, index=index_expr)
                 else:
                     id_token = self.accept_identifier()
                     result = VarNode(name=id_token.value)
