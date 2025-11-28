@@ -389,7 +389,8 @@ class Parser:
 
         if sym.type == 'IDENTIFIER':
             next_token = self.peek_next_token()
-            if next_token and next_token.type == 'ASSIGN_OPERATOR':
+            # Check if it's an assignment (either direct or array)
+            if next_token and (next_token.type == 'ASSIGN_OPERATOR' or next_token.type == 'LBRACKET'):
                 stmt = self.assignment_statement()
                 statements.append(stmt)
             else:
@@ -419,7 +420,8 @@ class Parser:
 
             if sym.type == 'IDENTIFIER':
                 next_token = self.peek_next_token()
-                if next_token and next_token.type == 'ASSIGN_OPERATOR':
+                # Check if it's an assignment (either direct or array)
+                if next_token and (next_token.type == 'ASSIGN_OPERATOR' or next_token.type == 'LBRACKET'):
                     stmt = self.assignment_statement()
                     statements.append(stmt)
                 else:
@@ -449,11 +451,21 @@ class Parser:
         self.tree_list.append(("<assignment_statement>", i))
 
         target_token = self.accept_identifier()
+        
+        if sym.type == 'LBRACKET':
+            self.accept('LBRACKET', '[')
+            index_expr = self.expression()
+            self.accept('RBRACKET', ']')
+            array_var = VarNode(name=target_token.value, line=target_token.line, column=target_token.column)
+            target = ArrayAccessNode(array_var=array_var, index_expression=index_expr, line=target_token.line, column=target_token.column)
+        else:
+            target = VarNode(name=target_token.value, line=target_token.line, column=target_token.column)
+
         self.accept('ASSIGN_OPERATOR', ':=')
         value_expr = self.expression()
         
         i -= 1
-        return AssignNode(target=VarNode(name=target_token.value, line=target_token.line, column=target_token.column), value=value_expr, line=target_token.line, column=target_token.column)
+        return AssignNode(target=target, value=value_expr, line=target_token.line, column=target_token.column)
 
     def if_statement(self):
         global sym,i
@@ -682,6 +694,13 @@ class Parser:
                 next_token = self.peek_next_token()
                 if next_token and next_token.type == 'LPARENTHESIS':
                     result = self.procedure_function_call()
+                elif next_token and next_token.type == 'LBRACKET':
+                    id_token = self.accept_identifier()
+                    self.accept('LBRACKET', '[')
+                    index_expr = self.expression()
+                    self.accept('RBRACKET', ']')
+                    array_var = VarNode(name=id_token.value, line=id_token.line, column=id_token.column)
+                    result = ArrayAccessNode(array_var=array_var, index_expression=index_expr, line=id_token.line, column=id_token.column)
                 else:
                     id_token = self.accept_identifier()
                     result = VarNode(name=id_token.value, line=id_token.line, column=id_token.column)

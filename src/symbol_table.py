@@ -1,11 +1,12 @@
+from typing import Optional, List
 class ObjKind:
     VARIABLE = "variable"
     CONSTANT = "constant"
     TYPE = "type"
     FUNCTION = "function"
     PROCEDURE = "procedure"
-    ARRAY = "array"
-
+    PARAMETER = "parameter"
+    PROGRAM = "program"
 
 class TypeKind:
     UNKNOWN = 0
@@ -35,31 +36,33 @@ class TypeKind:
         return str(type_code)  # For backward compatibility with string types
 
 class SymbolTableEntry:
-    def __init__(self, identifier, link, obj, typ, ref, nrm, lev, adr):
-        self.identifier = identifier  
-        self.link = link             
-        self.obj = obj              
-        self.type = typ             
-        self.ref = ref                
-        self.nrm = nrm                
-        self.lev = lev              
-        self.adr = adr                
+    def __init__(self, identifier: str, link: int, obj: str, typ: str, ref: int, nrm: int, lev: int, adr: int):
+        self.identifier = identifier
+        self.link = link      
+        self.obj = obj
+        self.type = typ
+        self.ref = ref
+        self.nrm = nrm
+        self.lev = lev
+        self.adr = adr
 
     def __repr__(self):
-        return (f"<TAB: id={self.identifier}, obj={self.obj}, type={self.type}, "f"ref={self.ref}, lev={self.lev}, adr={self.adr}, link={self.link}>")
+        return (f"<TAB id='{self.identifier}' obj={self.obj} type={self.type} "
+                f"ref={self.ref} nrm={self.nrm} lev={self.lev} adr={self.adr} link={self.link}>")
 
 class BlockTableEntry:
-    def __init__(self):
-        self.last = 0
-        self.lpar = 0
-        self.psze = 0
-        self.vsze = 0
+    def __init__(self, lpar=0):
+        self.last: int = 0     # 1-based index ke TAB, 0 kalau kosong
+        self.lpar: int = lpar  # indeks parent block di BTAB (0-based), 0 untuk global block
+        self.psze: int = 0     # parameter size
+        self.vsze: int = 0     # variable size
 
     def __repr__(self):
-        return f"<BTAB last={self.last}, lpar={self.lpar}, psze={self.psze}, vsze={self.vsze}>"
+        return f"<BTAB last={self.last} lpar={self.lpar} psze={self.psze} vsze={self.vsze}>"
 
 class ArrayTableEntry:
-    def __init__(self, xtyp, etyp, eref, low, high, elsz, size):
+    def __init__(self, xtyp: str, etyp: str, eref: int,
+                 low: int, high: int, elsz: int, size: int):
         self.xtyp = xtyp
         self.etyp = etyp
         self.eref = eref
@@ -69,23 +72,26 @@ class ArrayTableEntry:
         self.size = size
 
     def __repr__(self):
-        return (f"<ATAB xtyp={self.xtyp}, etyp={self.etyp}, eref={self.eref}, "f"low={self.low}, high={self.high}, size={self.size}>")
+        return (f"<ATAB xtyp={self.xtyp} etyp={self.etyp} eref={self.eref} "
+                f"low={self.low} high={self.high} elsz={self.elsz} size={self.size}>")
 
 class SymbolTables:
     def __init__(self):
-        self.tab = []
-        self.btab = [BlockTableEntry()]  # block 0 = global block
-        self.atab = []
-        self.display = [0]               # pointer to tab index start for each level
-        self.level = 0                   # lexical level
-        
-        # Initialize reserved words
+        # Inisialisasi sesuai spesifikasi Pascal-S
+        self.tab: List[SymbolTableEntry] = []
+        self.btab: List[BlockTableEntry] = [BlockTableEntry(lpar=0)]  # btab[0] = global block, lpar=0
+        self.atab: List[ArrayTableEntry] = []
+        self.display: List[int] = [0]  # display[level] = indeks btab
+        self.level: int = 0  # lexical level (0 = global)
+
+        # Initialize reserved words (indeks 0-28)
         self._init_reserved_words()
         
-        # Initialize predefined procedures/functions
+        # Initialize predefined procedures/functions (mulai dari indeks 29+)
         self._init_predefined()
-    
+
     def _init_reserved_words(self):
+        """Initialize reserved words di indeks 0-28"""
         reserved = [
             "AND", "ARRAY", "BEGIN", "CASE", "CONST", "DIV", "DOWNTO", "DO",
             "ELSE", "END", "FOR", "FUNCTION", "IF", "MOD", "NOT", "OF", "OR",
@@ -107,83 +113,69 @@ class SymbolTables:
             self.tab.append(entry)
     
     def _init_predefined(self):
-        # writeln
-        writeln_entry = SymbolTableEntry(
-            identifier="writeln",
-            link=0,
-            obj=ObjKind.PROCEDURE,
-            typ=TypeKind.UNKNOWN,
-            ref=0,
-            nrm=0,
-            lev=0,
-            adr=0
-        )
-        self.tab.append(writeln_entry)
+        predefined = [
+            ("writeln", ObjKind.PROCEDURE),
+            ("write", ObjKind.PROCEDURE),
+            ("readln", ObjKind.PROCEDURE),
+            ("read", ObjKind.PROCEDURE)
+        ]
         
-        # write
-        write_entry = SymbolTableEntry(
-            identifier="write",
-            link=0,
-            obj=ObjKind.PROCEDURE,
-            typ=TypeKind.UNKNOWN,
-            ref=0,
-            nrm=0,
-            lev=0,
-            adr=0
-        )
-        self.tab.append(write_entry)
-        
-        # readln
-        readln_entry = SymbolTableEntry(
-            identifier="readln",
-            link=0,
-            obj=ObjKind.PROCEDURE,
-            typ=TypeKind.UNKNOWN,
-            ref=0,
-            nrm=0,
-            lev=0,
-            adr=0
-        )
-        self.tab.append(readln_entry)
-        
-        # read
-        read_entry = SymbolTableEntry(
-            identifier="read",
-            link=0,
-            obj=ObjKind.PROCEDURE,
-            typ=TypeKind.UNKNOWN,
-            ref=0,
-            nrm=0,
-            lev=0,
-            adr=0
-        )
-        self.tab.append(read_entry)
+        for name, obj_kind in predefined:
+            entry = SymbolTableEntry(
+                identifier=name,
+                link=0,
+                obj=obj_kind,
+                typ=TypeKind.UNKNOWN,
+                ref=0,
+                nrm=0,
+                lev=0,
+                adr=0
+            )
+            self.tab.append(entry)
+    
+    # helper
+    def _tab_len_1based(self) -> int:
+        return len(self.tab)
 
-    def lookup(self, name):
-        # Search level sekarang to global
-        for lev in range(self.level, -1, -1):
-            idx = self.display[lev]
-            
-            while idx != 0:
-                entry = self.tab[idx]
-                if entry.identifier.lower() == name.lower():
+    def _new_tab_index_1based(self) -> int:
+        return len(self.tab) + 1
+
+    def lookup(self, name: str) -> Optional[int]:
+        for lvl in range(self.level, -1, -1):
+            block_idx = self.display[lvl]
+            if block_idx < 0 or block_idx >= len(self.btab):
+                continue
+            i = self.btab[block_idx].last  # 1-based index
+            while i != 0:
+                entry = self.tab[i - 1]
+                if entry.identifier == name:
+                    return i - 1
+                i = entry.link
+        for idx, entry in enumerate(self.tab):
+            if entry.identifier == name and entry.lev == 0 and entry.link == 0:
+                if entry.obj in (ObjKind.PROCEDURE, ObjKind.FUNCTION, "reserved"):
                     return idx
-                idx = entry.link
-        
-        for i in range(min(len(self.tab), 33)):
-            entry = self.tab[i]
-            if entry.identifier.lower() == name.lower():
-                return i
         
         return None
 
-    def add_symbol(self, identifier, obj, typ=TypeKind.UNKNOWN, ref=0, nrm=0, adr=0):
-        prev = self.display[self.level]
-        
-        new_index = len(self.tab)
+    def find_in_current_block(self, name: str) -> Optional[int]:
+        block_idx = self.display[self.level]
+        i = self.btab[block_idx].last
+        while i != 0:
+            entry = self.tab[i - 1]
+            if entry.identifier == name:
+                return i - 1
+            i = entry.link
+        return None
+
+    def add_symbol(self, identifier: str, obj: str, typ: str = TypeKind.UNKNOWN, ref: int = 0, nrm: int = 0, adr: int = 0) -> int:
+        current_block = self.display[self.level]
+        prev_last = self.btab[current_block].last  # 1-based index (atau 0 jika kosong)
+        new_index_1based = self._new_tab_index_1based()
+
         entry = SymbolTableEntry(
             identifier=identifier,
-            link=prev,
+            link=prev_last,  # Link menggunakan format 1-based (sama seperti btab.last)
             obj=obj,
             typ=typ,
             ref=ref,
@@ -192,26 +184,51 @@ class SymbolTables:
             adr=adr
         )
         self.tab.append(entry)
-        self.display[self.level] = new_index
 
-        current_block_idx = self.display[self.level] if self.level < len(self.display) else 0
-        if self.level < len(self.btab):
-            self.btab[self.level].last = new_index
+        # update btab.last for current block
+        self.btab[current_block].last = new_index_1based
 
-        return new_index 
+        return new_index_1based - 1  # return 0-based
 
-    def enter_block(self):
+    def enter_block(self) -> int:
+        parent_block_idx = self.display[self.level]
+        new_block_idx = len(self.btab)  # next BTAB index (0-based)
+        new_bentry = BlockTableEntry()
+        new_bentry.lpar = parent_block_idx
+        # last/psze/vsze default 0
+        self.btab.append(new_bentry)
+
+        # update display and level
         self.level += 1
-        self.display.append(0)
-        self.btab.append(BlockTableEntry())
-
+        self.display.append(new_block_idx)
         return self.level
 
-    def exit_block(self):
+    def exit_block(self) -> int:
+        if self.level == 0:
+            # global
+            return 0
         self.display.pop()
         self.level -= 1
+        return self.level
 
-    def add_array_type(self, xtyp, etyp, eref, low, high, elsz, size):
+    def add_array_type(self, xtyp: str, etyp: str, eref: int, low: int, high: int, elsz: int) -> int:
+        size = (high - low + 1) * elsz
         idx = len(self.atab)
-        self.atab.append(ArrayTableEntry(xtyp, etyp, eref, low, high, elsz, size))
-        return idx  # atab index
+        self.atab.append(ArrayTableEntry(xtyp=xtyp, etyp=etyp, eref=eref,
+                                         low=low, high=high, elsz=elsz, size=size))
+        return idx
+
+    def get_tab_entry(self, tab_index_0based: int) -> Optional[SymbolTableEntry]:
+        if 0 <= tab_index_0based < len(self.tab):
+            return self.tab[tab_index_0based]
+        return None
+
+    def get_btab_entry(self, btab_index: int) -> Optional[BlockTableEntry]:
+        if 0 <= btab_index < len(self.btab):
+            return self.btab[btab_index]
+        return None
+
+    def get_atab_entry(self, atab_index: int) -> Optional[ArrayTableEntry]:
+        if 0 <= atab_index < len(self.atab):
+            return self.atab[atab_index]
+        return None

@@ -27,10 +27,12 @@ class TypeChecker:
         return TypeKind.UNKNOWN
     
     def visit_ProgramNode(self, node: ProgramNode):
-        prog_idx = len(self.symbol_tables.tab)
+        # Masukkan nama program ke tab dengan linking ke global block
+        prev_last = self.symbol_tables.btab[0].last
+        
         prog_entry = SymbolTableEntry(
             identifier=node.name,
-            link=0,
+            link=prev_last,  # Link ke entry sebelumnya di global block
             obj="program",
             typ=TypeKind.UNKNOWN,
             ref=0,
@@ -39,23 +41,30 @@ class TypeChecker:
             adr=0
         )
         self.symbol_tables.tab.append(prog_entry)
+        prog_idx_1based = len(self.symbol_tables.tab)
         
+        # Update btab[0].last untuk menunjuk ke program entry
+        self.symbol_tables.btab[0].last = prog_idx_1based
+        
+        # Process declarations (variabel global)
         for decl in node.declarations:
             self.visit(decl)
 
-        self.visit(node.block)
+        self.symbol_tables.enter_block()  # level = 1, btab[1] dibuat
+        
+        if node.block:
+            self.visit(node.block)
+        
+        self.symbol_tables.exit_block()  # kembali ke level 0
 
         node.scope_level = 0
-        
-        if len(self.symbol_tables.tab) > prog_idx:
-            self.symbol_tables.btab[0].last = len(self.symbol_tables.tab) - 1
 
         return node
     
-    def visit_BlockNode(self, node: BlockNode): 
+    def visit_BlockNode(self, node: BlockNode):
         self.symbol_tables.enter_block()
         
-        # Visit declarations
+        # Visit declarations dalam block ini
         for decl in node.declarations:
             self.visit(decl)
         
@@ -89,7 +98,7 @@ class TypeChecker:
                     self.error(f"Variable '{var_name}' already declared in this scope", node)
                     continue
             
-            # Add to symbol table
+            # Add to symbol table dengan linking ke block chain
             idx = self.symbol_tables.add_symbol(
                 identifier=var_name,
                 obj=ObjKind.VARIABLE,
@@ -97,8 +106,11 @@ class TypeChecker:
                 ref=atab_ref,
                 nrm=1  # normal variable
             )
-            if self.symbol_tables.level < len(self.symbol_tables.btab):
-                self.symbol_tables.btab[self.symbol_tables.level].vsze += 1
+            
+            # Update vsze (variable size) di btab untuk block saat ini
+            current_block_idx = self.symbol_tables.display[self.symbol_tables.level]
+            if current_block_idx < len(self.symbol_tables.btab):
+                self.symbol_tables.btab[current_block_idx].vsze += 1
         
         node.type = actual_type
         node.scope_level = self.symbol_tables.level
@@ -284,8 +296,6 @@ class TypeChecker:
         node.tab_index = idx
         node.type = entry.type  
         
-        print(f"  [CALL] {entry.obj} '{node.name}' with {len(arg_types)} arguments")
-        
         return entry.type
     
     def visit_BinOpNode(self, node: BinOpNode):
@@ -414,12 +424,22 @@ class TypeChecker:
             element_type = self.resolve_type(type_name.element_type)
             
             if hasattr(type_name.index_range, 'low') and hasattr(type_name.index_range, 'high'):
-                low = type_name.index_range.low
-                high = type_name.index_range.high
+                low_node = type_name.index_range.low
+                high_node = type_name.index_range.high
+                
+                # Extract integer values from NumberNode
+                if isinstance(low_node, NumberNode):
+                    low = int(low_node.value)
+                else:
+                    low = low_node
+                
+                if isinstance(high_node, NumberNode):
+                    high = int(high_node.value)
+                else:
+                    high = high_node
                 
                 # Calculate array size
                 element_size = 1  # Simplified
-                array_size = (high - low + 1) * element_size
                 
                 # Add to atab and return the index
                 atab_index = self.symbol_tables.add_array_type(
@@ -428,8 +448,7 @@ class TypeChecker:
                     eref=0,            
                     low=low,              
                     high=high,             
-                    elsz=element_size,    
-                    size=array_size        
+                    elsz=element_size
                 )
                 
                 return (TypeKind.ARRAY, atab_index)
@@ -510,13 +529,17 @@ class TypeChecker:
         print(f"{'Idx':<5} {'ID':<15} {'Obj':<12} {'Type':<15} {'Ref':<5} {'Nrm':<5} {'Lev':<5} {'Adr':<5} {'Link':<5}")
         print("-" * 85)
         for i, entry in enumerate(self.symbol_tables.tab):
-            print(f"{i:<5} {entry.identifier:<15} {entry.obj:<12} {entry.type:<5} {entry.ref:<5} {entry.nrm:<5} {entry.lev:<5} {entry.adr:<5} {entry.link:<5}")
+            # Convert link from 1-based to 0-based for display (0 stays 0, n becomes n-1)
+            link_0based = entry.link - 1 if entry.link > 0 else 0
+            print(f"{i:<5} {entry.identifier:<15} {entry.obj:<12} {entry.type:<5} {entry.ref:<5} {entry.nrm:<5} {entry.lev:<5} {entry.adr:<5} {link_0based:<5}")
 
         print("\n=== BLOCK TABLE (BTAB) ===")
         print(f"{'Idx':<5} {'Last':<6} {'Lpar':<6} {'Psze':<6} {'Vsze':<6}")
         print("-" * 35)
         for i, block in enumerate(self.symbol_tables.btab):
-            print(f"{i:<5} {block.last:<6} {block.lpar:<6} {block.psze:<6} {block.vsze:<6}")
+            # Convert last from 1-based to 0-based for display (0 stays 0, n becomes n-1)
+            last_0based = block.last - 1 if block.last > 0 else 0
+            print(f"{i:<5} {last_0based:<6} {block.lpar:<6} {block.psze:<6} {block.vsze:<6}")
         
         print("\n=== ARRAY TABLE (ATAB) ===")
         if len(self.symbol_tables.atab) == 0:
