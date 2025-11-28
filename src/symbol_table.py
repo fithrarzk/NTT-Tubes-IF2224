@@ -60,19 +60,109 @@ class SymbolTables:
         self.atab = []
         self.display = [0]               # pointer to tab index start for each level
         self.level = 0                   # lexical level
+        
+        # Initialize reserved words
+        self._init_reserved_words()
+        
+        # Initialize predefined procedures/functions
+        self._init_predefined()
+    
+    def _init_reserved_words(self):
+        reserved = [
+            "AND", "ARRAY", "BEGIN", "CASE", "CONST", "DIV", "DOWNTO", "DO",
+            "ELSE", "END", "FOR", "FUNCTION", "IF", "MOD", "NOT", "OF", "OR",
+            "PROCEDURE", "PROGRAM", "RECORD", "REPEAT", "STRING", "THEN", "TO",
+            "TYPE", "UNTIL", "VAR", "WHILE", "PACKED"
+        ]
+        
+        for word in reserved:
+            entry = SymbolTableEntry(
+                identifier=word,
+                link=0,
+                obj="reserved",
+                typ=TypeKind.UNKNOWN,
+                ref=0,
+                nrm=0,
+                lev=0,
+                adr=0
+            )
+            self.tab.append(entry)
+    
+    def _init_predefined(self):
+        # writeln
+        writeln_entry = SymbolTableEntry(
+            identifier="writeln",
+            link=0,
+            obj=ObjKind.PROCEDURE,
+            typ=TypeKind.UNKNOWN,
+            ref=0,
+            nrm=0,
+            lev=0,
+            adr=0
+        )
+        self.tab.append(writeln_entry)
+        
+        # write
+        write_entry = SymbolTableEntry(
+            identifier="write",
+            link=0,
+            obj=ObjKind.PROCEDURE,
+            typ=TypeKind.UNKNOWN,
+            ref=0,
+            nrm=0,
+            lev=0,
+            adr=0
+        )
+        self.tab.append(write_entry)
+        
+        # readln
+        readln_entry = SymbolTableEntry(
+            identifier="readln",
+            link=0,
+            obj=ObjKind.PROCEDURE,
+            typ=TypeKind.UNKNOWN,
+            ref=0,
+            nrm=0,
+            lev=0,
+            adr=0
+        )
+        self.tab.append(readln_entry)
+        
+        # read
+        read_entry = SymbolTableEntry(
+            identifier="read",
+            link=0,
+            obj=ObjKind.PROCEDURE,
+            typ=TypeKind.UNKNOWN,
+            ref=0,
+            nrm=0,
+            lev=0,
+            adr=0
+        )
+        self.tab.append(read_entry)
 
     def lookup(self, name):
-        idx = self.display[self.level]  # pointer ke start
-        while idx != 0:
-            entry = self.tab[idx - 1] 
-            if entry.identifier == name:
-                return idx - 1
-            idx = entry.link
+        # Search level sekarang to global
+        for lev in range(self.level, -1, -1):
+            idx = self.display[lev]
+            
+            while idx != 0:
+                entry = self.tab[idx]
+                if entry.identifier.lower() == name.lower():
+                    return idx
+                idx = entry.link
+        
+        for i in range(min(len(self.tab), 33)):
+            entry = self.tab[i]
+            if entry.identifier.lower() == name.lower():
+                return i
+        
         return None
 
     def add_symbol(self, identifier, obj, typ=TypeKind.UNKNOWN, ref=0, nrm=0, adr=0):
-        prev = self.display[self.level]  
-        new_index = len(self.tab) + 1   
+        prev = self.display[self.level]
+        
+        new_index = len(self.tab)
         entry = SymbolTableEntry(
             identifier=identifier,
             link=prev,
@@ -84,12 +174,13 @@ class SymbolTables:
             adr=adr
         )
         self.tab.append(entry)
-        self.display[self.level] = new_index 
+        self.display[self.level] = new_index
 
-        # update BTAB.last
-        self.btab[self.level].last = new_index
+        current_block_idx = self.display[self.level] if self.level < len(self.display) else 0
+        if self.level < len(self.btab):
+            self.btab[self.level].last = new_index
 
-        return new_index - 1 
+        return new_index 
 
     def enter_block(self):
         self.level += 1

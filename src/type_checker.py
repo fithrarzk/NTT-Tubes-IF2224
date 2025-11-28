@@ -27,18 +27,28 @@ class TypeChecker:
         return TypeKind.UNKNOWN
     
     def visit_ProgramNode(self, node: ProgramNode):
-        self.symbol_tables.add_symbol(
+        prog_idx = len(self.symbol_tables.tab)
+        prog_entry = SymbolTableEntry(
             identifier=node.name,
+            link=0,
             obj="program",
-            typ=TypeKind.UNKNOWN
+            typ=TypeKind.UNKNOWN,
+            ref=0,
+            nrm=1,
+            lev=0,
+            adr=0
         )
-
+        self.symbol_tables.tab.append(prog_entry)
+        
         for decl in node.declarations:
             self.visit(decl)
 
         self.visit(node.block)
 
         node.scope_level = 0
+        
+        if len(self.symbol_tables.tab) > prog_idx:
+            self.symbol_tables.btab[0].last = len(self.symbol_tables.tab) - 1
 
         return node
     
@@ -80,6 +90,8 @@ class TypeChecker:
                 typ=var_type,
                 nrm=1  # normal variable
             )
+            if self.symbol_tables.level < len(self.symbol_tables.btab):
+                self.symbol_tables.btab[self.symbol_tables.level].vsze += 1
         
         node.type = var_type
         node.scope_level = self.symbol_tables.level
@@ -443,13 +455,41 @@ class TypeChecker:
     
     def print_symbol_table(self):
         print("\n=== SYMBOL TABLE (TAB) ===")
-        print(f"{'Idx':<5} {'ID':<15} {'Obj':<12} {'Type':<10} {'Lev':<5} {'Link':<5}")
-        print("-" * 60)
+        print(f"{'Idx':<5} {'ID':<15} {'Obj':<12} {'Type':<10} {'Ref':<5} {'Nrm':<5} {'Lev':<5} {'Adr':<5} {'Link':<5}")
+        print("-" * 75)
         for i, entry in enumerate(self.symbol_tables.tab):
-            print(f"{i:<5} {entry.identifier:<15} {entry.obj:<12} {entry.type:<10} {entry.lev:<5} {entry.link:<5}")
+            print(f"{i:<5} {entry.identifier:<15} {entry.obj:<12} {entry.type:<10} {entry.ref:<5} {entry.nrm:<5} {entry.lev:<5} {entry.adr:<5} {entry.link:<5}")
         
         print("\n=== BLOCK TABLE (BTAB) ===")
         print(f"{'Idx':<5} {'Last':<6} {'Lpar':<6} {'Psze':<6} {'Vsze':<6}")
         print("-" * 35)
         for i, block in enumerate(self.symbol_tables.btab):
             print(f"{i:<5} {block.last:<6} {block.lpar:<6} {block.psze:<6} {block.vsze:<6}")
+        
+        print("\n=== ARRAY TABLE (ATAB) ===")
+        if len(self.symbol_tables.atab) == 0:
+            print("(empty - no arrays declared)")
+        else:
+            print(f"{'Idx':<5} {'Xtyp':<6} {'Etyp':<10} {'Eref':<6} {'Low':<6} {'High':<6} {'Elsz':<6} {'Size':<6}")
+            print("-" * 55)
+            for i, arr in enumerate(self.symbol_tables.atab):
+                print(f"{i:<5} {arr.xtyp:<6} {arr.etyp:<10} {arr.eref:<6} {arr.low:<6} {arr.high:<6} {arr.elsz:<6} {arr.size:<6}")
+        
+        # Debugging
+        # print("\n=== DISPLAY (Lexical Level Pointers) ===")
+        # print(f"Level -> Tab Index (head of linked list)")
+        # for level, idx in enumerate(self.symbol_tables.display):
+        #     print(f"  {level} -> {idx}")
+        
+        # print("\n=== LINKED LIST TRAVERSAL (Level 0 - Global Block) ===")
+        # idx = self.symbol_tables.display[0]
+        # if idx == 0:
+        #     print("  (empty linked list at level 0)")
+        # else:
+        #     print("  Traversal order (following links):")
+        #     count = 0
+        #     while idx != 0 and count < 100:
+        #         entry = self.symbol_tables.tab[idx]
+        #         print(f"    [{idx}] {entry.identifier} ({entry.obj}) -> link={entry.link}")
+        #         idx = entry.link
+        #         count += 1
