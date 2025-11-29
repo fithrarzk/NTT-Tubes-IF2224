@@ -1,4 +1,4 @@
-program Hello;
+program Hello frf;
 
 variabel
   a, b: integer;

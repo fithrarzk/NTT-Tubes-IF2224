@@ -1,5 +1,6 @@
 import argparse
 import sys
+import re
 from typing import Optional, Tuple
 from .dfa_load import DFARules
 from .lexer import Lexer, LexerError
@@ -35,16 +36,19 @@ class PascalCompiler:
             # Phase 1: Lexical Analysis
             success, error = self._phase1_lexical_analysis(source_path)
             if not success:
+                self._print_error(error)
                 return False, error
             
             # Phase 2: Syntax Analysis
             success, error = self._phase2_syntax_analysis()
             if not success:
+                self._print_error(error)
                 return False, error
             
             # Phase 3: Semantic Analysis
             success, error = self._phase3_semantic_analysis()
             if not success:
+                self._print_error(error)
                 return False, error
             
             # Display results
@@ -321,8 +325,48 @@ class PascalCompiler:
         print(f"  {message}")
     
     def _print_error(self, message: str):
+        print(f"\n{'!' * 90}")
         print(f"COMPILATION FAILED")
-        print(f"{message}")
+        print(f"{'!' * 90}")
+        print(f"Error Message: {message}")
+        
+        line_match = re.search(r'(?:line|row)\s*[:]?\s*(\d+)', message, re.IGNORECASE)
+        col_match = re.search(r'(?:col|column)\s*[:]?\s*(\d+)', message, re.IGNORECASE)
+        
+        if line_match and self.source_code:
+            try:
+                line_num = int(line_match.group(1))
+                col_num = int(col_match.group(1)) if col_match else 0
+                self._display_error_context(line_num, col_num)
+            except Exception:
+                pass
+
+    def _display_error_context(self, line_num: int, col_num: int):
+        lines = self.source_code.splitlines()
+        total_lines = len(lines)
+        
+        if line_num < 1 or line_num > total_lines:
+            return
+
+        print(f"\nContext:")
+        print(f"{'-' * 40}")
+        
+        if line_num > 1:
+            print(f"{line_num-1:4d} | {lines[line_num-2]}")
+            
+        error_line = lines[line_num-1]
+        print(f"{line_num:4d} | {error_line}")
+        
+        if col_num > 0:
+            pointer = " " * (col_num + 6) + "^ HERE"
+            print(pointer)
+        else:
+            print(f"       {'^':^10} (Error around here)")
+            
+        if line_num < total_lines:
+            print(f"{line_num+1:4d} | {lines[line_num]}")
+            
+        print(f"{'-' * 40}")
     
     def get_tokens(self):
         return self.tokens
