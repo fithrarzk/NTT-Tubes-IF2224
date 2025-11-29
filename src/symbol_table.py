@@ -1,4 +1,9 @@
+# symbol_table.py
 from typing import Optional, List
+
+# ---------------------------
+# Object & Type enums
+# ---------------------------
 class ObjKind:
     VARIABLE = "variable"
     CONSTANT = "constant"
@@ -7,6 +12,7 @@ class ObjKind:
     PROCEDURE = "procedure"
     PARAMETER = "parameter"
     PROGRAM = "program"
+    RESERVED = "reserved"
 
 class TypeKind:
     UNKNOWN = 0
@@ -17,52 +23,54 @@ class TypeKind:
     STRING = 5
     ARRAY = 6
     RECORD = 7
-    
-    # convert numeric code to string name
+
     @staticmethod
     def to_string(type_code):
-        type_names = {
-            0: "unknown",
-            1: "integer",
-            2: "real",
-            3: "boolean",
-            4: "char",
-            5: "string",
-            6: "array",
-            7: "record"
+        names = {
+            TypeKind.UNKNOWN: "unknown",
+            TypeKind.INTEGER: "integer",
+            TypeKind.REAL: "real",
+            TypeKind.BOOLEAN: "boolean",
+            TypeKind.CHAR: "char",
+            TypeKind.STRING: "string",
+            TypeKind.ARRAY: "array",
+            TypeKind.RECORD: "record",
         }
-        if isinstance(type_code, int):
-            return type_names.get(type_code, f"type_{type_code}")
-        return str(type_code)  # For backward compatibility with string types
+        # if a caller passes a string (older code), return it directly
+        if isinstance(type_code, str):
+            return type_code
+        return names.get(type_code, f"type_{type_code}")
 
+# ---------------------------
+# Table entry dataclasses
+# ---------------------------
 class SymbolTableEntry:
-    def __init__(self, identifier: str, link: int, obj: str, typ: str, ref: int, nrm: int, lev: int, adr: int):
-        self.identifier = identifier
-        self.link = link      
-        self.obj = obj
-        self.type = typ
-        self.ref = ref
-        self.nrm = nrm
-        self.lev = lev
-        self.adr = adr
+    def __init__(self, identifier: str, link: int, obj: str, typ: int, ref: int, nrm: int, lev: int, adr: int):
+        self.identifier = identifier  # name
+        self.link = link              # index of previous symbol in same block (-1 if none)
+        self.obj = obj                # ObjKind
+        self.type = typ               # TypeKind (int) or custom (string)
+        self.ref = ref                # reference (e.g. atab index)
+        self.nrm = nrm                # normal / parameter flags
+        self.lev = lev                # lexical level
+        self.adr = adr                # address / offset
 
     def __repr__(self):
-        return (f"<TAB id='{self.identifier}' obj={self.obj} type={self.type} "
+        return (f"<TAB id='{self.identifier}' obj={self.obj} type={TypeKind.to_string(self.type)} "
                 f"ref={self.ref} nrm={self.nrm} lev={self.lev} adr={self.adr} link={self.link}>")
 
 class BlockTableEntry:
-    def __init__(self, lpar=0):
-        self.last: int = 0     # 1-based index ke TAB, 0 kalau kosong
-        self.lpar: int = lpar  # indeks parent block di BTAB (0-based), 0 untuk global block
-        self.psze: int = 0     # parameter size
-        self.vsze: int = 0     # variable size
+    def __init__(self, lpar: int = 0):
+        self.last: int = 0  # index into tab of last symbol in this block (-1 if none)
+        self.lpar: int = lpar  # parent block index
+        self.psze: int = 0   # parameter size
+        self.vsze: int = 0   # variable size (count)
 
     def __repr__(self):
         return f"<BTAB last={self.last} lpar={self.lpar} psze={self.psze} vsze={self.vsze}>"
 
 class ArrayTableEntry:
-    def __init__(self, xtyp: str, etyp: str, eref: int,
-                 low: int, high: int, elsz: int, size: int):
+    def __init__(self, xtyp: int, etyp: int, eref: int, low: int, high: int, elsz: int, size: int):
         self.xtyp = xtyp
         self.etyp = etyp
         self.eref = eref
@@ -72,38 +80,48 @@ class ArrayTableEntry:
         self.size = size
 
     def __repr__(self):
-        return (f"<ATAB xtyp={self.xtyp} etyp={self.etyp} eref={self.eref} "
-                f"low={self.low} high={self.high} elsz={self.elsz} size={self.size}>")
+        return (f"<ATAB xtyp={TypeKind.to_string(self.xtyp)} etyp={TypeKind.to_string(self.etyp)} "
+                f"eref={self.eref} low={self.low} high={self.high} elsz={self.elsz} size={self.size}>")
 
+# ---------------------------
+# SymbolTables (final, correct)
+# ---------------------------
 class SymbolTables:
     def __init__(self):
-        # Inisialisasi sesuai spesifikasi Pascal-S
+        # main tables
         self.tab: List[SymbolTableEntry] = []
-        self.btab: List[BlockTableEntry] = [BlockTableEntry(lpar=0)]  # btab[0] = global block, lpar=0
+        self.btab: List[BlockTableEntry] = []
         self.atab: List[ArrayTableEntry] = []
-        self.display: List[int] = [0]  # display[level] = indeks btab
-        self.level: int = 0  # lexical level (0 = global)
 
-        # Initialize reserved words (indeks 0-28)
+        # display[level] -> index into btab of active block at that lexical level
+        self.display: List[int] = [0]
+        self.level: int = 0
+
+        # initialize reserved words (these occupy tab index 0..28)
         self._init_reserved_words()
-        
-        # Initialize predefined procedures/functions (mulai dari indeks 29+)
+
+        # create global block (level 0)
+        self.enter_block()   # now level == 0
+
+        # initialize predefined procedures (placed in global block)
         self._init_predefined()
 
+    # ---------------------------
+    # initialization helpers
+    # ---------------------------
     def _init_reserved_words(self):
-        """Initialize reserved words di indeks 0-28"""
         reserved = [
             "AND", "ARRAY", "BEGIN", "CASE", "CONST", "DIV", "DOWNTO", "DO",
             "ELSE", "END", "FOR", "FUNCTION", "IF", "MOD", "NOT", "OF", "OR",
             "PROCEDURE", "PROGRAM", "RECORD", "REPEAT", "STRING", "THEN", "TO",
             "TYPE", "UNTIL", "VAR", "WHILE", "PACKED"
         ]
-        
-        for word in reserved:
+        # reserved have level -1 (not part of normal lexical levels)
+        for w in reserved:
             entry = SymbolTableEntry(
-                identifier=word,
+                identifier=w,
                 link=0,
-                obj="reserved",
+                obj=ObjKind.RESERVED,
                 typ=TypeKind.UNKNOWN,
                 ref=0,
                 nrm=0,
@@ -111,71 +129,61 @@ class SymbolTables:
                 adr=0
             )
             self.tab.append(entry)
-    
+
     def _init_predefined(self):
-        predefined = [
-            ("writeln", ObjKind.PROCEDURE),
-            ("write", ObjKind.PROCEDURE),
-            ("readln", ObjKind.PROCEDURE),
-            ("read", ObjKind.PROCEDURE)
-        ]
-        
-        for name, obj_kind in predefined:
-            entry = SymbolTableEntry(
-                identifier=name,
-                link=0,
-                obj=obj_kind,
-                typ=TypeKind.UNKNOWN,
-                ref=0,
-                nrm=0,
-                lev=0,
-                adr=0
-            )
-            self.tab.append(entry)
-    
-    # helper
-    def _tab_len_1based(self) -> int:
-        return len(self.tab)
+        predefined = ["writeln", "write", "readln", "read"]
+        for name in predefined:
+            # add into current block (global)
+            self.add_symbol(identifier=name, obj=ObjKind.PROCEDURE, typ=TypeKind.UNKNOWN, nrm=0)
 
-    def _new_tab_index_1based(self) -> int:
-        return len(self.tab) + 1
+    # ---------------------------
+    # block management
+    # ---------------------------
+    def enter_block(self) -> int:
+        """Enter a new lexical block. Returns new level."""
+        self.level += 1
+        parent_bindex = self.display[self.level - 1] if self.level > 0 and self.level - 1 < len(self.display) else -1
+        new_bindex = len(self.btab)
+        self.btab.append(BlockTableEntry(lpar=parent_bindex))
+        # ensure display list has slot for this level
+        if self.level >= len(self.display):
+            self.display.append(new_bindex)
+        else:
+            self.display[self.level] = new_bindex
+        return self.level
 
-    def lookup(self, name: str) -> Optional[int]:
-        for lvl in range(self.level, -1, -1):
-            block_idx = self.display[lvl]
-            if block_idx < 0 or block_idx >= len(self.btab):
-                continue
-            i = self.btab[block_idx].last  # 1-based index
-            while i != 0:
-                entry = self.tab[i - 1]
-                if entry.identifier == name:
-                    return i - 1
-                i = entry.link
-        for idx, entry in enumerate(self.tab):
-            if entry.identifier == name and entry.lev == 0 and entry.link == 0:
-                if entry.obj in (ObjKind.PROCEDURE, ObjKind.FUNCTION, "reserved"):
-                    return idx
-        
-        return None
+    def exit_block(self) -> int:
+        """Exit current block: returns new current level."""
+        if self.level <= 0:
+            # keep global as minimum
+            self.level = 0
+            return self.level
+        self.level -= 1
+        return self.level
 
-    def find_in_current_block(self, name: str) -> Optional[int]:
-        block_idx = self.display[self.level]
-        i = self.btab[block_idx].last
-        while i != 0:
-            entry = self.tab[i - 1]
-            if entry.identifier == name:
-                return i - 1
-            i = entry.link
-        return None
+    # ---------------------------
+    # add / find symbols
+    # ---------------------------
+    def add_symbol(self, identifier: str, obj: str, typ: int = TypeKind.UNKNOWN,
+                   ref: int = 0, nrm: int = 1, adr: int = 0) -> int:
+        """Add symbol into current block. Returns 0-based tab index."""
+        if self.level < 0:
+            raise RuntimeError("No block active when adding symbol")
 
-    def add_symbol(self, identifier: str, obj: str, typ: str = TypeKind.UNKNOWN, ref: int = 0, nrm: int = 0, adr: int = 0) -> int:
-        current_block = self.display[self.level]
-        prev_last = self.btab[current_block].last  # 1-based index (atau 0 jika kosong)
-        new_index_1based = self._new_tab_index_1based()
+        current_bindex = self.display[self.level]
+        if not (0 <= current_bindex < len(self.btab)):
+            # defensive: if display points outside, create block
+            current_bindex = len(self.btab)
+            self.btab.append(BlockTableEntry(lpar=-1))
+            self.display[self.level] = current_bindex
+
+        prev_last = self.btab[current_bindex].last  # previous last tab index (0-based) or -1
+
+        new_idx = len(self.tab)  # 0-based index for new entry
 
         entry = SymbolTableEntry(
             identifier=identifier,
-            link=prev_last,  # Link menggunakan format 1-based (sama seperti btab.last)
+            link=prev_last,
             obj=obj,
             typ=typ,
             ref=ref,
@@ -183,52 +191,77 @@ class SymbolTables:
             lev=self.level,
             adr=adr
         )
+
         self.tab.append(entry)
 
-        # update btab.last for current block
-        self.btab[current_block].last = new_index_1based
+        # update block last pointer to new index
+        self.btab[current_bindex].last = new_idx
 
-        return new_index_1based - 1  # return 0-based
+        # update variable area size if variable
+        if obj == ObjKind.VARIABLE:
+            self.btab[current_bindex].vsze += 1
 
-    def enter_block(self) -> int:
-        parent_block_idx = self.display[self.level]
-        new_block_idx = len(self.btab)  # next BTAB index (0-based)
-        new_bentry = BlockTableEntry()
-        new_bentry.lpar = parent_block_idx
-        # last/psze/vsze default 0
-        self.btab.append(new_bentry)
+        return new_idx
 
-        # update display and level
-        self.level += 1
-        self.display.append(new_block_idx)
-        return self.level
+    def find_in_current_block(self, name: str) -> Optional[int]:
+        """Return tab index if 'name' declared in current block (else None)."""
+        if self.level < 0 or self.level >= len(self.display):
+            return None
+        bidx = self.display[self.level]
+        if not (0 <= bidx < len(self.btab)):
+            return None
+        idx = self.btab[bidx].last
+        visited = set()
+        while idx != 0 and idx not in visited:
+            visited.add(idx)
+            entry = self.tab[idx]
+            if entry.identifier.lower() == name.lower() and entry.lev == self.level:
+                return idx
+            idx = entry.link
+        return None
 
-    def exit_block(self) -> int:
-        if self.level == 0:
-            # global
-            return 0
-        self.display.pop()
-        self.level -= 1
-        return self.level
+    def lookup(self, name: str) -> Optional[int]:
+        """Lexical lookup: from current level down to global (0), return tab index or None.
+           Also check reserved words (level -1) which occupy tab[0..28].
+        """
+        # check reserved words first (they occupy the very first entries)
+        for i in range(min(29, len(self.tab))):
+            if self.tab[i].identifier.lower() == name.lower():
+                return i
 
-    def add_array_type(self, xtyp: str, etyp: str, eref: int, low: int, high: int, elsz: int) -> int:
+        for lvl in range(self.level, -1, -1):
+            if lvl >= len(self.display):
+                continue
+            bidx = self.display[lvl]
+            if not (0 <= bidx < len(self.btab)):
+                continue
+            idx = self.btab[bidx].last
+            visited = set()
+            while idx != 0 and idx not in visited:
+                visited.add(idx)
+                entry = self.tab[idx]
+                if entry.identifier.lower() == name.lower():
+                    return idx
+                idx = entry.link
+        return None
+
+    # ---------------------------
+    # arrays
+    # ---------------------------
+    def add_array_type(self, xtyp: int, etyp: int, eref: int, low: int, high: int, elsz: int) -> int:
         size = (high - low + 1) * elsz
         idx = len(self.atab)
-        self.atab.append(ArrayTableEntry(xtyp=xtyp, etyp=etyp, eref=eref,
-                                         low=low, high=high, elsz=elsz, size=size))
+        self.atab.append(ArrayTableEntry(xtyp=xtyp, etyp=etyp, eref=eref, low=low, high=high, elsz=elsz, size=size))
         return idx
 
-    def get_tab_entry(self, tab_index_0based: int) -> Optional[SymbolTableEntry]:
-        if 0 <= tab_index_0based < len(self.tab):
-            return self.tab[tab_index_0based]
-        return None
+    # ---------------------------
+    # getters
+    # ---------------------------
+    def get_tab_entry(self, tab_index: int) -> Optional[SymbolTableEntry]:
+        return self.tab[tab_index] if 0 <= tab_index < len(self.tab) else None
 
     def get_btab_entry(self, btab_index: int) -> Optional[BlockTableEntry]:
-        if 0 <= btab_index < len(self.btab):
-            return self.btab[btab_index]
-        return None
+        return self.btab[btab_index] if 0 <= btab_index < len(self.btab) else None
 
     def get_atab_entry(self, atab_index: int) -> Optional[ArrayTableEntry]:
-        if 0 <= atab_index < len(self.atab):
-            return self.atab[atab_index]
-        return None
+        return self.atab[atab_index] if 0 <= atab_index < len(self.atab) else None
