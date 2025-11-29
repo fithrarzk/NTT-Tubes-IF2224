@@ -155,7 +155,7 @@ class PascalCompiler:
         print("-" * 90)
         
         for i, entry in enumerate(self.symbol_tables.tab):
-            link_display = entry.link - 1 if entry.link > 0 else 0
+            link_display = entry.link
             type_display = TypeKind.to_string(entry.type)
             
             print(f"{i:<5} {entry.identifier:<15} {entry.obj:<12} {type_display:<12} "
@@ -169,7 +169,7 @@ class PascalCompiler:
         print("-" * 40)
         
         for i, block in enumerate(self.symbol_tables.btab):
-            last_display = block.last - 1 if block.last > 0 else 0
+            last_display = block.last
             print(f"{i:<5} {last_display:<6} {block.lpar:<6} {block.psze:<6} {block.vsze:<6}")
     
     def _display_array_table(self):
