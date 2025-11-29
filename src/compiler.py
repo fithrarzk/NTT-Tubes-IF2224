@@ -315,7 +315,7 @@ class PascalCompiler:
         print(f"{'=' * 90}")
     
     def _print_success(self, message: str):
-        print(f"✓ {message}")
+        print(f" {message}")
     
     def _print_info(self, message: str):
         print(f"  {message}")
