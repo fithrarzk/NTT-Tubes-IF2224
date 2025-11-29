@@ -228,7 +228,7 @@ class TypeChecker:
         
         if not self.check_type_compatibility(target_type, value_type):
             self.error(
-                f"Type mismatch in assignment: cannot assign {value_type} to {target_type}", node
+                f"Type mismatch in assignment: cannot assign {TypeKind.to_string(value_type)} to {TypeKind.to_string(target_type)}", node
             )
         
         node.type = TypeKind.UNKNOWN 
@@ -238,7 +238,7 @@ class TypeChecker:
     def visit_IfNode(self, node: IfNode):
         cond_type = self.visit(node.condition)
         if cond_type != TypeKind.BOOLEAN:
-            self.error(f"If condition must be boolean, got {cond_type}", node)
+            self.error(f"If condition must be boolean, got {TypeKind.to_string(cond_type)}", node)
             
         self.visit(node.then_statement)
         
@@ -250,7 +250,7 @@ class TypeChecker:
     def visit_WhileNode(self, node: WhileNode):
         cond_type = self.visit(node.condition)
         if cond_type != TypeKind.BOOLEAN:
-            self.error(f"While condition must be boolean, got {cond_type}", node)
+            self.error(f"While condition must be boolean, got {TypeKind.to_string(cond_type)}", node)
 
         self.visit(node.body)
         
@@ -259,15 +259,15 @@ class TypeChecker:
     def visit_ForNode(self, node: ForNode):
         var_type = self.visit(node.var)
         if var_type != TypeKind.INTEGER:
-            self.error(f"For loop variable must be integer, got {var_type}", node)
+            self.error(f"For loop variable must be integer, got {TypeKind.to_string(var_type)}", node)
         
         start_type = self.visit(node.start_expr)
         end_type = self.visit(node.end_expr)
         
         if start_type != TypeKind.INTEGER:
-            self.error(f"For loop start expression must be integer, got {start_type}", node)
+            self.error(f"For loop start expression must be integer, got {TypeKind.to_string(start_type)}", node)
         if end_type != TypeKind.INTEGER:
-            self.error(f"For loop end expression must be integer, got {end_type}", node)
+            self.error(f"For loop end expression must be integer, got {TypeKind.to_string(end_type)}", node)
         
         # Visit body
         self.visit(node.body)
@@ -313,14 +313,14 @@ class TypeChecker:
         
         if node.op in ('+', '-'):
             if operand_type not in (TypeKind.INTEGER, TypeKind.REAL):
-                self.error(f"Unary {node.op} requires numeric operand, got {operand_type}", node)
+                self.error(f"Unary {node.op} requires numeric operand, got {TypeKind.to_string(operand_type)}", node)
                 result_type = TypeKind.UNKNOWN
             else:
                 result_type = operand_type
         
         elif node.op == 'tidak':  # NOT
             if operand_type != TypeKind.BOOLEAN:
-                self.error(f"NOT operator requires boolean operand, got {operand_type}", node)
+                self.error(f"NOT operator requires boolean operand, got {TypeKind.to_string(operand_type)}", node)
                 result_type = TypeKind.UNKNOWN
             else:
                 result_type = TypeKind.BOOLEAN
@@ -479,12 +479,12 @@ class TypeChecker:
             
             if left_type not in (TypeKind.INTEGER, TypeKind.REAL):
                 dummy_node = type('',(object,),{'line':0,'column':0})()
-                self.error(f"Arithmetic operator '{op}' requires numeric operands, got {left_type}", dummy_node)
+                self.error(f"Arithmetic operator '{op}' requires numeric operands, got {TypeKind.to_string(left_type)}", dummy_node)
                 return TypeKind.UNKNOWN
             
             if right_type not in (TypeKind.INTEGER, TypeKind.REAL):
                 dummy_node = type('',(object,),{'line':0,'column':0})()
-                self.error(f"Arithmetic operator '{op}' requires numeric operands, got {right_type}", dummy_node)
+                self.error(f"Arithmetic operator '{op}' requires numeric operands, got {TypeKind.to_string(right_type)}", dummy_node)
                 return TypeKind.UNKNOWN
             
             # Result type promotion
@@ -503,10 +503,10 @@ class TypeChecker:
         elif op in ('dan', 'atau'):
             if left_type != TypeKind.BOOLEAN:
                 dummy_node = type('',(object,),{'line':0,'column':0})()
-                self.error(f"Logical operator '{op}' requires boolean operands, got {left_type}", dummy_node)
+                self.error(f"Logical operator '{op}' requires boolean operands, got {TypeKind.to_string(left_type)}", dummy_node)
             if right_type != TypeKind.BOOLEAN:
                 dummy_node = type('',(object,),{'line':0,'column':0})()
-                self.error(f"Logical operator '{op}' requires boolean operands, got {right_type}", dummy_node)
+                self.error(f"Logical operator '{op}' requires boolean operands, got {TypeKind.to_string(right_type)}", dummy_node)
             return TypeKind.BOOLEAN
         
         elif op in ('=', '<>', '<', '>', '<=', '>='):
