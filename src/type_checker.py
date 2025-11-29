@@ -231,7 +231,7 @@ class TypeChecker:
                 f"Type mismatch in assignment: cannot assign {TypeKind.to_string(value_type)} to {TypeKind.to_string(target_type)}", node
             )
         
-        node.type = TypeKind.UNKNOWN 
+        node.type = value_type 
         
         return None
     
@@ -304,6 +304,8 @@ class TypeChecker:
         
         result_type = self.get_binop_result_type(node.op, left_type, right_type)
         
+        if node.op in ('+', '-', '*', '/'):
+            node.type = 'integer'
         node.type = result_type
         
         return result_type
