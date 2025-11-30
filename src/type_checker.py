@@ -550,21 +550,3 @@ class TypeChecker:
             for i, arr in enumerate(self.symbol_tables.atab):
                 print(f"{i:<5} {arr.xtyp:<6} {arr.etyp:<10} {arr.eref:<6} {arr.low:<6} {arr.high:<6} {arr.elsz:<6} {arr.size:<6}")
         
-        # Debugging
-        # print("\n=== DISPLAY (Lexical Level Pointers) ===")
-        # print(f"Level -> Tab Index (head of linked list)")
-        # for level, idx in enumerate(self.symbol_tables.display):
-        #     print(f"  {level} -> {idx}")
-        
-        # print("\n=== LINKED LIST TRAVERSAL (Level 0 - Global Block) ===")
-        # idx = self.symbol_tables.display[0]
-        # if idx == 0:
-        #     print("  (empty linked list at level 0)")
-        # else:
-        #     print("  Traversal order (following links):")
-        #     count = 0
-        #     while idx != 0 and count < 100:
-        #         entry = self.symbol_tables.tab[idx]
-        #         print(f"    [{idx}] {entry.identifier} ({entry.obj}) -> link={entry.link}")
-        #         idx = entry.link
-        #         count += 1
