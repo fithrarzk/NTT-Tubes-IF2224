@@ -197,65 +197,62 @@ class PascalCompiler:
         
         self._print_decorated_node(self.ast_root)
     
-    def _print_decorated_node(self, node: ASTNode, indent: int = 0, prefix: str = "", is_last: bool = True):
+    def _print_decorated_node(self, node: ASTNode, indent: str = "", is_last: bool = True, label: str = None):
         if node is None:
             return
         
-        node_str = node.__class__.__name__
-        if hasattr(node, 'name') and isinstance(node.name, str):
-            node_str += f" '{node.name}'"
-        elif hasattr(node, 'value') and not callable(node.value):
-            if isinstance(node.value, str):
-                node_str += f" '{node.value}'"
-            else:
-                node_str += f" {node.value}"
-        elif hasattr(node, 'op') and isinstance(node.op, str):
-            node_str += f" [{node.op}]"
+        node_name = node.__class__.__name__.replace("Node", "")
+        if node_name == "CompoundStatement":
+            node_name = "Block"
+        elif node_name == "ProcedureFunctionCall":
+            node_name = "Call"
+        elif node_name == "BinaryOp":
+            node_name = "BinOp"
+        
+        info = ""
+        
+        if hasattr(node, 'names') and node.names:
+            info = ", ".join([f"'{str(n)}'" for n in node.names])
+            
+        elif hasattr(node, 'name') and node.name:
+            info = f"'{node.name}'"
+            
+        elif hasattr(node, 'value') and node.value is not None:
+            if not self._is_ast_node(node.value):
+                 info = str(node.value)
+        elif hasattr(node, 'op'):
+            info = f"'{node.op}'"
+        
+        if label and label not in ['statements', 'declarations', 'arguments', 'body', 'block']:
+            display_str = f"{label} {info}" if info else f"{label} {node_name}"
+        else:
+            display_str = f"{node_name}({info})" if info else node_name
         
         decorations = []
         
-        if hasattr(node, 'type') and node.type is not None:
-            if isinstance(node.type, int):
-                decorations.append(f"type: {TypeKind.to_string(node.type)}")
-        
         if hasattr(node, 'tab_index') and node.tab_index is not None:
-            tab_entry = self.symbol_tables.get_tab_entry(node.tab_index)
-            if tab_entry:
-                decorations.append(f"tab[{node.tab_index}]")
-                decorations.append(f"obj: {tab_entry.obj}")
-                if tab_entry.lev > 0:
-                    decorations.append(f"scope: {tab_entry.lev}")
+            decorations.append(f"tab_index:{node.tab_index}")
+            entry = self.symbol_tables.get_tab_entry(node.tab_index)
+            if entry and entry.lev is not None:
+                decorations.append(f"lev:{entry.lev}")
         
+        if hasattr(node, 'type') and node.type is not None:
+            type_str = TypeKind.to_string(node.type).lower()
+            decorations.append(f"type:{type_str}")
         elif hasattr(node, 'scope_level') and node.scope_level is not None:
-            decorations.append(f"scope: {node.scope_level}")
+             decorations.append(f"lev:{node.scope_level}")
+
+        connector = "└─ " if is_last else "├─ "
+        arrow_part = f" → {', '.join(decorations)}" if decorations else ""
         
-        if decorations:
-            node_str += f" ({', '.join(decorations)})"
-        
-        if indent == 0:
-            print(node_str)
-        else:
-            connector = "└── " if is_last else "├── "
-            print(f"{prefix}{connector}{node_str}")
+        print(f"{indent}{connector}{display_str}{arrow_part}")
         
         children = self._get_child_nodes(node)
+        new_indent = indent + ("   " if is_last else "│  ")
         
-        if indent == 0:
-            new_prefix = ""
-        else:
-            extension = "    " if is_last else "│   "
-            new_prefix = prefix + extension
-        
-        for i, (label, child) in enumerate(children):
+        for i, (child_label, child_node) in enumerate(children):
             is_last_child = (i == len(children) - 1)
-            
-            if label and self._has_multiple_same_label(children, label):
-                label_connector = "└── " if is_last_child else "├── "
-                print(f"{new_prefix}{label_connector}[{label}]")
-                child_prefix = new_prefix + ("    " if is_last_child else "│   ")
-                self._print_decorated_node(child, indent + 2, child_prefix, True)
-            else:
-                self._print_decorated_node(child, indent + 1, new_prefix, is_last_child)
+            self._print_decorated_node(child_node, new_indent, is_last_child, child_label)
     
     def _get_child_nodes(self, node: ASTNode):
         children = []

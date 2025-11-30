@@ -1,7 +1,7 @@
 program Hello;
 
 variabel
-  a, b: integer;
+  a, b, c, d, sf: integer;
 
 mulai
   a := 5;
